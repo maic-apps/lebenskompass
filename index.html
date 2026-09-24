@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lebenskompass</title>
+<meta name="theme-color" content="#F6F3EC">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Lebenskompass">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+:root{
+  --bg:#F6F3EC; --card:#FFFFFF; --ink:#1F2A28; --muted:#5C6360; --line:#DDD7CA; --soft:#EFEBE2;
+  --accent:#0F5E4B; --accent-ink:#FFFFFF; --accent-soft:#E4F4EE; --accent-2:#7CCFB2; --warm:#5C5347;
+  --danger:#A3372D;
+  --serif: "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#141917; --card:#1D2421; --ink:#ECEFEC; --muted:#A7B0AC; --line:#2F3934; --soft:#232B28;
+    --accent:#5CC6A2; --accent-ink:#0B1F19; --accent-soft:#1E3A31; --accent-2:#2F7A62; --warm:#C9C0B2;
+    --danger:#F08A7E;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-text-size-adjust:100%}
+body{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+button,input,textarea{font-family:inherit;font-size:16px;color:inherit}
+button{cursor:pointer;-webkit-tap-highlight-color:transparent}
+a{color:var(--accent)}
+.wrap{max-width:480px;margin:0 auto;padding:16px 16px 40px;display:flex;flex-direction:column;gap:18px;min-height:100vh}
+h1{font-family:var(--serif);font-weight:600;font-size:30px;line-height:1.15;margin:0}
+h2{font-family:var(--serif);font-weight:600;font-size:22px;line-height:1.2;margin:0}
+.muted{color:var(--muted)}
+.small{font-size:14px}
+.kicker{font-size:13px;font-weight:600;color:var(--accent)}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px}
+.back{height:44px;display:flex;align-items:center;font-size:16px;font-weight:600;text-decoration:none;color:var(--accent);background:none;border:none;padding:0}
+.pill{height:44px;padding:0 18px;border-radius:22px;border:1px solid var(--line);background:transparent;font-size:15px;color:var(--muted)}
+.btn{height:52px;border-radius:26px;border:none;background:var(--accent);color:var(--accent-ink);font-size:17px;font-weight:600;width:100%}
+.btn.sm{height:44px;width:auto;padding:0 20px;font-size:16px}
+.btn.line{background:transparent;border:1px solid var(--accent);color:var(--accent)}
+.btn.quiet{background:transparent;border:1px solid var(--line);color:var(--ink);font-weight:400}
+.btn.danger{background:var(--danger);color:#fff}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;display:flex;flex-direction:column;gap:6px}
+.soft{background:var(--soft);border-radius:14px;padding:14px 16px;color:var(--warm);font-size:15px;line-height:1.45}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+/* compass */
+.compass{position:relative;width:340px;height:320px;margin:0 auto}
+.compass svg{position:absolute;left:80px;top:70px}
+.dir{padding:0 6px}
+.dir{position:absolute;height:48px;border-radius:24px;border:1px solid var(--accent);background:var(--card);color:var(--accent);font-size:16px;font-weight:600}
+.dir.on{background:var(--accent);color:var(--accent-ink)}
+.dir.n{left:125px;top:0;width:90px}.dir.e{left:248px;top:136px;width:92px}.dir.s{left:125px;top:272px;width:90px}.dir.w{left:0;top:136px;width:84px}
+.center{position:absolute;left:134px;top:124px;width:72px;height:72px;border-radius:36px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:14px;font-weight:600}
+.center.on{background:var(--ink);color:var(--bg)}
+@media (max-width:370px){.compass{transform:scale(.88);transform-origin:top center;margin-bottom:-38px}}
+/* journal */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{height:36px;padding:0 12px;border-radius:18px;border:1px solid var(--line);background:var(--card);font-size:14px;font-weight:600}
+.chip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.day{display:flex;flex-direction:column;gap:10px}
+.day>.label{font-size:13px;font-weight:600;color:var(--muted)}
+.entry{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:flex;gap:12px;align-items:flex-start}
+.entry .body{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.entry .title{font-size:16px;font-weight:600}
+.entry .text{font-size:15px;line-height:1.45;color:var(--muted);white-space:pre-line;overflow-wrap:anywhere}
+.entry .del{align-self:flex-start;background:none;border:none;color:var(--muted);font-size:13px;padding:6px 0;min-height:32px;text-decoration:underline}
+.entry .del.confirm{color:var(--danger);font-weight:600}
+.ico{flex-shrink:0}
+label.f{font-family:var(--serif);font-size:19px;font-weight:600}
+input.t,textarea.t{width:100%;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--card);line-height:1.4}
+input.t{height:48px}
+textarea.t{resize:vertical;min-height:120px}
+/* pause */
+.breath{width:200px;height:200px;margin:8px auto;border-radius:50%;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;transform:scale(.7);transition:transform 4s ease-in-out}
+.breath.in{transform:scale(1)}
+.breath.out{transform:scale(.7);transition-duration:6s}
+.breath span{font-family:var(--serif);font-size:22px;color:var(--accent)}
+@media (prefers-reduced-motion: reduce){.breath,.breath.in,.breath.out{transition:none;transform:none}}
+.help a{display:flex;justify-content:space-between;align-items:center;min-height:52px;padding:0 16px;border-radius:14px;background:var(--card);border:1px solid var(--line);text-decoration:none;color:var(--ink);font-size:16px}
+.help a b{color:var(--accent)}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:22px;font-size:15px;max-width:90%;text-align:center;z-index:9}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+<main id="app" class="wrap" aria-live="polite"></main>
+<input type="file" id="importFile" accept=".json,application/json" class="sr" aria-label="Sicherung auswählen">
+<script>
+"use strict";
+/* ---------- Daten ---------- */
+const KEY = "lebenskompass.v1";
+const VERSION = "Etappe 1";
+const DIRS = {
+  erkennen:  { name:"Erkennen",  pos:"n", rot:0,   kicker:"Oben · Beginn", text:"Was hält dich gerade ab? Welche stille Regel bremst dich?", cta:"Starten" },
+  loslassen: { name:"Loslassen", pos:"e", rot:90,  kicker:"Rechts", text:"Stärke einschätzen, Gefühl benennen, im Körper beschreiben, dabeibleiben, bis es nachlässt.", cta:"Runde beginnen" },
+  interesse: { name:"Interesse", pos:"s", rot:180, kicker:"Unten", text:"Entdecke, was dich anzieht, und brich zu einer kleinen Expedition auf.", cta:"Zur Entdeckerkarte" },
+  freude:    { name:"Freude",    pos:"w", rot:270, kicker:"Links", text:"Einen schönen Moment festhalten, die Essenz deiner Freude finden oder Neues ausprobieren.", cta:"Starten" }
+};
+const ORDER = ["erkennen","loslassen","interesse","freude"];
+
+function fresh(){ return { v:1, entries:[], checkins:[], lastBackup:null, backupSnooze:null, created:new Date().toISOString() }; }
+function load(){
+  try{
+    const d = JSON.parse(localStorage.getItem(KEY));
+    if(d && Array.isArray(d.entries)) return Object.assign(fresh(), d);
+  }catch(e){}
+  return fresh();
+}
+let S = load();
+function save(){
+  try{ localStorage.setItem(KEY, JSON.stringify(S)); return true; }
+  catch(e){ toast("Speichern hat nicht geklappt."); return false; }
+}
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+/* Schnittstelle für alle Bereiche: ein Eintrag ins gemeinsame Journal */
+function addEntry({area="notiz", title="", text="", meta=null}){
+  const e = { id:uid(), date:new Date().toISOString(), area, title:String(title).trim(), text:String(text).trim(), meta };
+  S.entries.push(e); save(); return e;
+}
+/* Schnittstelle für sanfte Nachfragen (z. B. „Wie war dein kleiner Schritt?“) */
+function addCheckin({area, text, inDays=3}){
+  S.checkins.push({ id:uid(), area, text, due:Date.now() + inDays*864e5, done:false }); save();
+}
+
+/* ---------- Helfer ---------- */
+const app = document.getElementById("app");
+let ui = { sel:null, filter:"alle", confirmDel:null, confirmWipe:false };
+let breathTimer = null;
+
+function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
+function dayKey(d){ const x=new Date(d); return x.getFullYear()+"-"+(x.getMonth()+1)+"-"+x.getDate(); }
+function shortDate(d){ const x=new Date(d); return x.getDate()+"."+(x.getMonth()+1)+"."; }
+function dayLabel(d){
+  const now=new Date(), y=new Date(now); y.setDate(now.getDate()-1);
+  if(dayKey(d)===dayKey(now)) return "Heute · "+shortDate(d);
+  if(dayKey(d)===dayKey(y)) return "Gestern · "+shortDate(d);
+  return new Date(d).toLocaleDateString("de-DE",{weekday:"short"}).replace(".","")+" · "+shortDate(d);
+}
+function time(d){ return new Date(d).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}); }
+function daysSince(iso){ return iso ? (Date.now()-new Date(iso).getTime())/864e5 : Infinity; }
+function areaName(a){ return DIRS[a] ? DIRS[a].name : "Notiz"; }
+
+let toastT=null;
+function toast(msg){
+  document.querySelectorAll(".toast").forEach(t=>t.remove());
+  const t=document.createElement("div"); t.className="toast"; t.setAttribute("role","status"); t.textContent=msg;
+  document.body.appendChild(t); clearTimeout(toastT); toastT=setTimeout(()=>t.remove(),2600);
+}
+
+function icon(area){
+  if(!DIRS[area]) return `<svg class="ico" width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="var(--soft)"/><circle cx="14" cy="14" r="4" fill="var(--muted)"/></svg>`;
+  return `<svg class="ico" width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="var(--accent-soft)"/><g transform="rotate(${DIRS[area].rot} 14 14)"><polygon points="14,4 18,14 14,12 10,14" fill="var(--accent)"/><polygon points="14,24 18,14 14,16 10,14" fill="var(--accent-2)"/></g></svg>`;
+}
+const ROSE = `<svg width="180" height="180" viewBox="0 0 200 200" aria-hidden="true">
+<circle cx="100" cy="100" r="96" fill="none" stroke="var(--line)" stroke-width="1.2"/>
+<circle cx="100" cy="100" r="90" fill="none" stroke="var(--line)" stroke-width="1.2" stroke-dasharray="2 5"/>
+<polygon points="100,12 113,87 100,100" fill="var(--accent)"/><polygon points="100,12 87,87 100,100" fill="var(--accent-2)"/>
+<polygon points="188,100 113,87 100,100" fill="var(--accent-2)"/><polygon points="188,100 113,113 100,100" fill="var(--accent)"/>
+<polygon points="100,188 113,113 100,100" fill="var(--accent-2)"/><polygon points="100,188 87,113 100,100" fill="var(--accent)"/>
+<polygon points="12,100 87,87 100,100" fill="var(--accent)"/><polygon points="12,100 87,113 100,100" fill="var(--accent-2)"/></svg>`;
+
+/* ---------- Bildschirme ---------- */
+function screenStart(){
+  const today = new Date().toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"});
+  const due = S.checkins.find(c=>!c.done && c.due<=Date.now());
+  const backupDue = S.entries.length>0 && daysSince(S.lastBackup||S.created)>=30 && daysSince(S.backupSnooze)>=7;
+  const sel = ui.sel;
+  const info = sel==="journal"
+    ? { kicker:"Mitte", name:"Journal", text:"Alle Einträge aus den vier Richtungen, nach Tagen sortiert.", cta:"Journal öffnen" }
+    : sel ? DIRS[sel] : null;
+  const pool = S.entries.filter(e=>dayKey(e.date)!==dayKey(new Date()));
+  const mem = (pool.length?pool:S.entries);
+  const m = mem.length ? mem[Math.floor(Math.random()*mem.length)] : null;
+
+  return `
+  <div class="bar">
+    <div><div class="muted small">${esc(today)}</div></div>
+    <button class="pill" data-act="go" data-to="#/pause">Pause</button>
+  </div>
+  <h1>Wohin geht's heute?</h1>
+  ${due ? `<div class="card">
+      <div class="kicker">Sanfte Nachfrage · ${esc(areaName(due.area))}</div>
+      <h2>Wie war dein kleiner Schritt?</h2>
+      <div class="muted">„${esc(due.text)}“</div>
+      <div class="row" style="margin-top:6px">
+        <button class="btn sm" data-act="ci-done" data-id="${due.id}">Hab ich gemacht</button>
+        <button class="btn sm quiet" data-act="ci-later" data-id="${due.id}">Noch nicht</button>
+        <button class="btn sm quiet" data-act="ci-drop" data-id="${due.id}">Nicht mehr wichtig</button>
+      </div></div>` : ""}
+  ${backupDue ? `<div class="card">
+      <div class="kicker">Datensicherung</div>
+      <div>Dein letzter Stand ist über einen Monat alt. Magst du kurz sichern?</div>
+      <div class="row" style="margin-top:6px">
+        <button class="btn sm" data-act="export">Jetzt sichern</button>
+        <button class="btn sm quiet" data-act="snooze">Später</button>
+      </div></div>` : ""}
+  <div class="compass">
+    ${ROSE}
+    ${ORDER.map(k=>`<button class="dir ${DIRS[k].pos} ${sel===k?"on":""}" data-act="sel" data-k="${k}" aria-pressed="${sel===k}">${DIRS[k].name}</button>`).join("")}
+    <button class="center ${sel==="journal"?"on":""}" data-act="sel" data-k="journal" aria-pressed="${sel==="journal"}" aria-label="Journal">Journal</button>
+  </div>
+  <div class="card" style="min-height:150px">
+    ${info ? `
+      <div class="kicker">${esc(info.kicker)}</div>
+      <h2>${esc(info.name)}</h2>
+      <div class="muted" style="line-height:1.45">${esc(info.text)}</div>
+      <button class="btn sm" style="align-self:flex-start;margin-top:8px" data-act="go" data-to="${sel==="journal"?"#/journal":"#/bereich/"+sel}">${esc(info.cta)}</button>`
+    : `<div class="kicker">Lebenskompass</div><h2>Tippe auf eine Richtung</h2>
+       <div class="muted">Oder in die Mitte, um dein Journal zu lesen.</div>`}
+  </div>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <div class="small muted" style="font-weight:600">Eine Erinnerung für dich</div>
+    ${m ? `<div class="entry">${icon(m.area)}<div class="body">
+        <div class="kicker">${esc(areaName(m.area))} · ${esc(shortDate(m.date))}</div>
+        ${m.title?`<div class="title">${esc(m.title)}</div>`:""}
+        <div class="text">${esc(m.text)}</div></div></div>`
+      : `<div class="soft">Hier erscheint bald eine Erinnerung aus deinem Journal.</div>`}
+  </div>
+  <div style="text-align:center;margin-top:auto"><button class="back" style="margin:0 auto" data-act="go" data-to="#/mehr">Sichern &amp; Einstellungen</button></div>`;
+}
+
+function screenJournal(){
+  const f = ui.filter;
+  const list = S.entries.filter(e=>f==="alle" || e.area===f).sort((a,b)=>b.date.localeCompare(a.date));
+  const days=[]; list.forEach(e=>{ const k=dayKey(e.date); let d=days.find(x=>x.k===k); if(!d){ d={k,label:dayLabel(e.date),items:[]}; days.push(d);} d.items.push(e); });
+  const filters=[["alle","Alle"],...ORDER.map(k=>[k,DIRS[k].name]),["notiz","Notizen"]];
+  return `
+  <div class="bar"><button class="back" data-act="go" data-to="#/">‹ Kompass</button><span class="kicker">Mitte</span><button class="pill" data-act="go" data-to="#/pause">Pause</button></div>
+  <div class="bar"><h1>Dein Journal</h1><button class="btn sm line" data-act="go" data-to="#/notiz">+ Notiz</button></div>
+  <div class="chips">${filters.map(([k,l])=>`<button class="chip ${f===k?"on":""}" data-act="filter" data-k="${k}" aria-pressed="${f===k}">${l}</button>`).join("")}</div>
+  ${days.length ? days.map(d=>`<section class="day"><div class="label">${esc(d.label)}</div>
+      ${d.items.map(e=>`<article class="entry">${icon(e.area)}<div class="body">
+        <div class="kicker">${esc(areaName(e.area))} · ${esc(time(e.date))}</div>
+        ${e.title?`<div class="title">${esc(e.title)}</div>`:""}
+        ${e.text?`<div class="text">${esc(e.text)}</div>`:""}
+        <button class="del ${ui.confirmDel===e.id?"confirm":""}" data-act="del" data-id="${e.id}">${ui.confirmDel===e.id?"Wirklich löschen?":"Löschen"}</button>
+      </div></article>`).join("")}</section>`).join("")
+    : `<div class="soft">${S.entries.length ? "Aus dieser Richtung gibt es noch keinen Eintrag." : "Noch keine Einträge. Jeder Bereich endet mit „Ins Journal“. Du kannst auch jederzeit eine eigene Notiz schreiben."}</div>`}`;
+}
+
+function screenNotiz(){
+  return `
+  <div class="bar"><button class="back" data-act="go" data-to="#/journal">‹ Journal</button><span class="kicker">Notiz</span><span style="width:64px"></span></div>
+  <h1>Eine Notiz</h1>
+  <div style="display:flex;flex-direction:column;gap:6px"><label class="f" for="nt">Überschrift <span class="muted small" style="font-family:var(--sans);font-weight:400">(optional)</span></label>
+    <input class="t" id="nt" maxlength="80" autocomplete="off"></div>
+  <div style="display:flex;flex-direction:column;gap:6px"><label class="f" for="nx">Was möchtest du festhalten?</label>
+    <textarea class="t" id="nx" rows="6"></textarea>
+    <div id="nerr" class="small" style="color:var(--danger);min-height:18px"></div></div>
+  <button class="btn" data-act="save-note" style="margin-top:auto">Ins Journal</button>`;
+}
+
+function screenBereich(k){
+  const d = DIRS[k]; if(!d) { location.hash="#/"; return ""; }
+  const stage = {erkennen:3, loslassen:2, interesse:4, freude:5}[k];
+  return `
+  <div class="bar"><button class="back" data-act="go" data-to="#/">‹ Kompass</button><span class="kicker">${d.name}</span><button class="pill" data-act="go" data-to="#/pause">Pause</button></div>
+  <h1>${d.name}</h1>
+  <div class="muted" style="line-height:1.5">${esc(d.text)}</div>
+  <div class="soft">Dieser Bereich kommt in Etappe ${stage}. Bis dahin kannst du im Journal schon eigene Notizen festhalten.</div>
+  <button class="btn line" data-act="go" data-to="#/notiz">Notiz schreiben</button>`;
+}
+
+function screenPause(){
+  return `
+  <div class="bar"><button class="back" data-act="back">‹ Zurück</button><span class="kicker">Pause</span><span style="width:64px"></span></div>
+  <h1>Du darfst jetzt anhalten.</h1>
+  <div class="muted" style="line-height:1.5">Nichts muss gerade weitergehen. Atme ein paar Mal mit dem Kreis.</div>
+  <div class="breath" id="breath"><span id="breathTxt">Einatmen</span></div>
+  <div class="card"><div class="kicker">Wenn es zu viel wird</div>
+    <div class="muted small" style="line-height:1.45">Du musst damit nicht allein bleiben. Hier findest du rund um die Uhr jemanden zum Reden, kostenlos und anonym.</div></div>
+  <div class="help" style="display:flex;flex-direction:column;gap:8px">
+    <a href="tel:08001110111">Telefonseelsorge <b>0800 111 0 111</b></a>
+    <a href="tel:08001110222">Telefonseelsorge <b>0800 111 0 222</b></a>
+    <a href="tel:116123">Telefonseelsorge <b>116 123</b></a>
+    <a href="tel:112">Notruf bei akuter Gefahr <b>112</b></a>
+  </div>`;
+}
+
+function screenMehr(){
+  const lb = S.lastBackup ? new Date(S.lastBackup).toLocaleDateString("de-DE") : "noch nie";
+  return `
+  <div class="bar"><button class="back" data-act="go" data-to="#/">‹ Kompass</button><span class="kicker">Mehr</span><span style="width:64px"></span></div>
+  <h1>Sichern &amp; Einstellungen</h1>
+  <div class="card"><div class="kicker">Deine Daten</div>
+    <div class="muted small" style="line-height:1.45">Alles bleibt nur auf diesem Gerät. ${S.entries.length} Einträge im Journal. Letzte Sicherung: ${esc(lb)}.</div>
+    <button class="btn sm" style="align-self:flex-start;margin-top:8px" data-act="export">Alles sichern</button></div>
+  <div class="card"><div class="kicker">Wiederherstellen</div>
+    <div class="muted small" style="line-height:1.45">Eine Sicherungsdatei einlesen. Vorhandene Einträge bleiben erhalten, fehlende kommen dazu.</div>
+    <button class="btn sm line" style="align-self:flex-start;margin-top:8px" data-act="import">Sicherung einlesen</button></div>
+  <div class="card"><div class="kicker">Neu anfangen</div>
+    <div class="muted small">Löscht alle Einträge auf diesem Gerät.</div>
+    ${ui.confirmWipe
+      ? `<div class="row" style="margin-top:8px"><button class="btn sm danger" data-act="wipe-yes">Ja, alles löschen</button><button class="btn sm quiet" data-act="wipe-no">Abbrechen</button></div>`
+      : `<button class="btn sm quiet" style="align-self:flex-start;margin-top:8px" data-act="wipe">Alles löschen …</button>`}</div>
+  <div class="muted small" style="text-align:center">Lebenskompass · ${VERSION}</div>`;
+}
+
+/* ---------- Router ---------- */
+function render(){
+  clearInterval(breathTimer); breathTimer=null;
+  const h = location.hash || "#/";
+  let html;
+  if(h==="#/journal") html=screenJournal();
+  else if(h==="#/notiz") html=screenNotiz();
+  else if(h==="#/pause") html=screenPause();
+  else if(h==="#/mehr") html=screenMehr();
+  else if(h.startsWith("#/bereich/")) html=screenBereich(h.slice(10));
+  else html=screenStart();
+  app.innerHTML = html;
+  if(h==="#/pause") startBreath();
+}
+let lastRoute = "#/";
+window.addEventListener("hashchange", ()=>{ ui.confirmDel=null; ui.confirmWipe=false; render(); window.scrollTo(0,0); });
+
+function startBreath(){
+  const b=document.getElementById("breath"), t=document.getElementById("breathTxt");
+  let inhale=true;
+  const step=()=>{ if(!b) return; b.classList.toggle("in",inhale); b.classList.toggle("out",!inhale); t.textContent=inhale?"Einatmen":"Ausatmen"; const d=inhale?4000:6000; inhale=!inhale; breathTimer=setTimeout(step,d); };
+  requestAnimationFrame(step);
+}
+
+/* ---------- Sichern ---------- */
+async function doExport(){
+  const data = JSON.stringify({ app:"lebenskompass", exported:new Date().toISOString(), data:S }, null, 2);
+  const d=new Date(), name=`lebenskompass-sicherung-${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}.json`;
+  const file = new File([data], name, {type:"application/json"});
+  try{
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:"Lebenskompass-Sicherung"});
+    }else{
+      const a=document.createElement("a"); a.href=URL.createObjectURL(file); a.download=name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+    }
+    S.lastBackup=new Date().toISOString(); save(); toast("Gesichert. Lege die Datei am besten in „Dateien“ ab."); render();
+  }catch(e){ if(e && e.name!=="AbortError") toast("Sichern hat nicht geklappt."); }
+}
+document.getElementById("importFile").addEventListener("change", async ev=>{
+  const f=ev.target.files[0]; ev.target.value=""; if(!f) return;
+  try{
+    const j=JSON.parse(await f.text()); const d=j.data||j;
+    if(!Array.isArray(d.entries)) throw 0;
+    const have=new Set(S.entries.map(e=>e.id)); let n=0;
+    d.entries.forEach(e=>{ if(e && e.id && e.date && !have.has(e.id)){ S.entries.push({id:String(e.id),date:String(e.date),area:String(e.area||"notiz"),title:String(e.title||""),text:String(e.text||""),meta:e.meta||null}); n++; } });
+    if(Array.isArray(d.checkins)){ const hc=new Set(S.checkins.map(c=>c.id)); d.checkins.forEach(c=>{ if(c&&c.id&&!hc.has(c.id)) S.checkins.push(c); }); }
+    save(); toast(n===1?"1 Eintrag wiederhergestellt.":`${n} Einträge wiederhergestellt.`); render();
+  }catch(e){ toast("Diese Datei ist keine Lebenskompass-Sicherung."); }
+});
+
+/* ---------- Aktionen ---------- */
+app.addEventListener("click", e=>{
+  const b=e.target.closest("[data-act]"); if(!b) return;
+  const a=b.dataset.act, id=b.dataset.id;
+  if(a==="go"){ location.hash=b.dataset.to; }
+  else if(a==="back"){ if(history.length>1) history.back(); else location.hash="#/"; }
+  else if(a==="sel"){ ui.sel = ui.sel===b.dataset.k ? null : b.dataset.k; render(); }
+  else if(a==="filter"){ ui.filter=b.dataset.k; ui.confirmDel=null; render(); }
+  else if(a==="del"){
+    if(ui.confirmDel===id){ S.entries=S.entries.filter(x=>x.id!==id); ui.confirmDel=null; save(); toast("Eintrag gelöscht."); }
+    else ui.confirmDel=id;
+    render();
+  }
+  else if(a==="save-note"){
+    const t=document.getElementById("nt").value, x=document.getElementById("nx").value;
+    if(!x.trim()){ document.getElementById("nerr").textContent="Schreib zuerst ein paar Worte."; document.getElementById("nx").focus(); return; }
+    addEntry({area:"notiz", title:t, text:x}); toast("Im Journal festgehalten."); location.hash="#/journal";
+  }
+  else if(a==="ci-done"||a==="ci-later"||a==="ci-drop"){
+    const c=S.checkins.find(x=>x.id===id); if(!c) return;
+    if(a==="ci-done"){ c.done=true; addEntry({area:c.area, title:"Kleiner Schritt geschafft", text:c.text}); toast("Schön! Das steht jetzt im Journal."); }
+    if(a==="ci-later"){ c.due=Date.now()+2*864e5; toast("Ich frage in zwei Tagen noch mal."); }
+    if(a==="ci-drop"){ c.done=true; }
+    save(); render();
+  }
+  else if(a==="export") doExport();
+  else if(a==="snooze"){ S.backupSnooze=new Date().toISOString(); save(); render(); }
+  else if(a==="import") document.getElementById("importFile").click();
+  else if(a==="wipe"){ ui.confirmWipe=true; render(); }
+  else if(a==="wipe-no"){ ui.confirmWipe=false; render(); }
+  else if(a==="wipe-yes"){ S=fresh(); save(); ui.confirmWipe=false; toast("Alles gelöscht."); render(); }
+});
+app.addEventListener("input", e=>{ if(e.target.id==="nx"){ const er=document.getElementById("nerr"); if(er) er.textContent=""; } });
+
+render();
+if("serviceWorker" in navigator){ window.addEventListener("load", ()=>navigator.serviceWorker.register("sw.js").catch(()=>{})); }
+</script>
+</body>
+</html>
