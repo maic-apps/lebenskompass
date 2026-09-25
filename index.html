@@ -16,6 +16,7 @@
   --bg:#F6F3EC; --card:#FFFFFF; --ink:#1F2A28; --muted:#5C6360; --line:#DDD7CA; --soft:#EFEBE2;
   --accent:#0F5E4B; --accent-ink:#FFFFFF; --accent-soft:#E4F4EE; --accent-2:#7CCFB2; --warm:#5C5347;
   --danger:#A3372D;
+  --sea:#DCE9EC; --wave:#BFD5DA; --isle0:#EEEBE2; --isle2:#D6E8C8; --isle3:#B7D8A4; --isle-line:#6E9C6A; --tree:#5E9A5A; --fog:#F3F1EB;
   --serif: "Iowan Old Style", Georgia, "Times New Roman", serif;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif;
 }
@@ -24,6 +25,7 @@
     --bg:#141917; --card:#1D2421; --ink:#ECEFEC; --muted:#A7B0AC; --line:#2F3934; --soft:#232B28;
     --accent:#5CC6A2; --accent-ink:#0B1F19; --accent-soft:#1E3A31; --accent-2:#2F7A62; --warm:#C9C0B2;
     --danger:#F08A7E;
+    --sea:#1B2B30; --wave:#2A4047; --isle0:#2A302D; --isle2:#2F4A36; --isle3:#3E6B47; --isle-line:#7FB08A; --tree:#8CC79A; --fog:#3A403D;
   }
 }
 *{box-sizing:border-box}
@@ -100,6 +102,16 @@ textarea.t{resize:vertical;min-height:120px}
 .rounds{display:flex;flex-direction:column;gap:10px}
 .rounds .r{display:flex;gap:12px;align-items:flex-start}
 .rounds .n{flex-shrink:0;width:30px;height:30px;border-radius:15px;background:var(--accent-soft);color:var(--accent);font-weight:600;font-size:14px;display:flex;align-items:center;justify-content:center}
+/* interesse */
+.map{position:relative;width:358px;height:400px;margin:0 auto;border-radius:18px;overflow:hidden;background:var(--sea)}
+.map svg{position:absolute;left:0;top:0}
+.isle-btn{position:absolute;border:none;background:transparent;padding:0;border-radius:40%}
+@media (max-width:370px){.map{transform:scale(.88);transform-origin:top center;margin-bottom:-48px}}
+.bigcard{background:var(--card);border:1px solid var(--line);border-radius:22px;min-height:240px;display:flex;align-items:center;justify-content:center;padding:28px 24px;text-align:center;font-family:var(--serif);font-size:24px;line-height:1.3}
+.mode{display:grid;grid-template-columns:130px 1fr;gap:10px;align-items:center;font-size:14px;min-height:28px}
+.mode .track{height:8px;border-radius:4px;background:var(--soft);overflow:hidden}.mode .track span{display:block;height:100%;background:var(--accent);border-radius:4px}
+.chip.dream{display:inline-flex;align-items:center;gap:2px;padding-right:2px}
+.chip.dream .x{background:none;border:none;font-size:18px;color:var(--muted);width:32px;height:32px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 </style>
 </head>
@@ -110,7 +122,7 @@ textarea.t{resize:vertical;min-height:120px}
 "use strict";
 /* ---------- Daten ---------- */
 const KEY = "lebenskompass.v1";
-const VERSION = "Etappe 3";
+const VERSION = "Etappe 4";
 const DIRS = {
   erkennen:  { name:"Erkennen",  pos:"n", rot:0,   kicker:"Oben · Beginn", text:"Was hält dich gerade ab? Welche stille Regel bremst dich?", cta:"Starten" },
   loslassen: { name:"Loslassen", pos:"e", rot:90,  kicker:"Rechts", text:"Stärke einschätzen, Gefühl benennen, im Körper beschreiben, dabeibleiben, bis es nachlässt.", cta:"Runde beginnen" },
@@ -140,8 +152,8 @@ function addEntry({area="notiz", title="", text="", meta=null, date=null}){
   S.entries.push(e); save(); return e;
 }
 /* Schnittstelle für sanfte Nachfragen (z. B. „Wie war dein kleiner Schritt?“) */
-function addCheckin({area, text, inDays=3}){
-  S.checkins.push({ id:uid(), area, text, due:Date.now() + inDays*864e5, done:false }); save();
+function addCheckin({area, text, inDays=3, link=null}){
+  S.checkins.push({ id:uid(), area, text, link, due:Date.now() + inDays*864e5, done:false }); save();
 }
 
 /* ---------- Helfer ---------- */
@@ -202,7 +214,7 @@ function screenStart(){
   <h1>Wohin geht's heute?</h1>
   ${due ? `<div class="card">
       <div class="kicker">Sanfte Nachfrage · ${esc(areaName(due.area))}</div>
-      <h2>Wie war dein kleiner Schritt?</h2>
+      <h2>${due.area==="interesse"?"Wie war deine Expedition?":"Wie war dein kleiner Schritt?"}</h2>
       <div class="muted">„${esc(due.text)}“</div>
       <div class="row" style="margin-top:6px">
         <button class="btn sm" data-act="ci-done" data-id="${due.id}">Hab ich gemacht</button>
@@ -737,6 +749,252 @@ function erkAction(a,b){
   else if(a==="erk-cancel-yes"){ S.erk=null; save(); ui.erkConfirmCancel=false; ui.erkResumeOk=false; render(); }
 }
 
+/* ---------- Interesse: Inhalte ---------- */
+const ISLES = [
+  { id:"wasser",   name:"Wasser",              cx:70,  cy:70,  rx:44, ry:27, k:[1,.85,1.1,.9,1,1.15,.8,1] },
+  { id:"motorrad", name:"Motorrad & Technik",  cx:190, cy:52,  rx:38, ry:23, k:[.9,1.1,.95,1.05,.85,1,1.1,.9] },
+  { id:"ferne",    name:"Ferne Länder",        cx:298, cy:80,  rx:40, ry:26, k:[1.1,.9,1,1.15,.85,1,.95,1.05] },
+  { id:"wald",     name:"Wald & Natur",        cx:105, cy:160, rx:38, ry:23, k:[1,1.1,.85,1,1.1,.9,1,.95] },
+  { id:"gemeinschaft", name:"Gemeinschaft",    cx:240, cy:168, rx:46, ry:27, k:[.95,1,1.1,.9,1,1.1,.85,1] },
+  { id:"bauen",    name:"Bauen & Holz",        cx:58,  cy:250, rx:36, ry:24, k:[1.05,.9,1,1.1,.95,.85,1.1,1] },
+  { id:"sport",    name:"Sport & Kampfkunst",  cx:170, cy:252, rx:34, ry:22, k:[1,.9,1.1,1,.85,1.05,1,1.1] },
+  { id:"musik",    name:"Musik & Tanz",        cx:292, cy:262, rx:36, ry:23, k:[.9,1.05,1,.9,1.1,1,.95,1.05] },
+  { id:"spiel",    name:"Spiel & Geschichten", cx:100, cy:338, rx:38, ry:24, k:[1,1.1,.9,1,1.05,.9,1.1,.95] },
+  { id:"nebel",    name:"Unbekanntes Land",    cx:252, cy:345, rx:40, ry:25, k:[1.1,.95,1,.85,1,1.1,.9,1] }
+];
+const BRIDGES = [["wasser","motorrad"],["wasser","ferne"],["motorrad","ferne"],["wasser","wald"],["gemeinschaft","sport"],["gemeinschaft","musik"],["spiel","gemeinschaft"],["bauen","wald"],["bauen","gemeinschaft"],["motorrad","gemeinschaft"],["musik","nebel"],["spiel","nebel"]];
+const MODES = { verstehen:"Verstehen", machen:"Selbst machen", erleben:"Erleben", teilen:"Mit anderen teilen", entdecken:"Entdecken" };
+const DREAMS = ["Island","Yellowstone","Redwoods","San Francisco","Hawaii","Neuseeland","Australien","Japan","Tibet","Sri Lanka","Bali","Thailand","China","Türkei"];
+
+const CARDS = {
+wasser:["Wie liest ein Segler den Wind auf der Alster?","Einmal auf dem Surfbrett die erste Welle stehen","Warum ist die Ostsee weniger salzig als die Nordsee?","Die schönsten Badestellen an der Elbe entdecken","Nachts im Meer schwimmen, wenn das Wasser leuchtet","Wie entstehen Ebbe und Flut?","Ein Wochenende auf einem Hausboot","Wie navigierte man früher nur mit Sternen und Sextant?","Wracktauchen in der Ostsee","Einen Fisch fangen, ausnehmen und am Wasser grillen","Stand-up-Paddling bei Sonnenaufgang","Wie funktioniert ein Tragflächenboot?","Den Sportbootführerschein See machen","Die Geschichte der Hamburger Hafenfähren","Wie finden Aale ihren Weg bis in die Sargassosee?","Eisbaden im Winter","Mit dem Kanu die Alsterkanäle erkunden","Wie baut ein Biber seinen Damm?","Ein Segeltörn auf einem Traditionsschiff","Kitesurfen zuschauen und das Prinzip verstehen","Wellen lesen: Woran erkennt man die perfekte Welle?"],
+motorrad:["Den Trans Euro Trail in Norddeutschland abfahren","Die höchste befahrbare Straße Europas erreichen","Wie funktioniert eine Enduro-Federung im Gelände?","Ein Offroad-Training auf Schotter und Sand","Mit dem Motorrad von Badestelle zu Badestelle an der Küste","Einen alten Motor zerlegen und verstehen","Wie verändert der Elektromotor das Motorradfahren?","Die großen Alpenpässe: Stilfser Joch, Großglockner, Timmelsjoch","Mit dem E-Roller die eigene Stadt neu entdecken","Offroad navigieren mit GPS-Tracks","Eine Motorradgruppe für gemeinsame Touren finden","Neben dem Motorrad im Zelt übernachten","Wie denkt eine KI? Ein Blick unter die Haube","Eine eigene kleine App bauen, so wie den Lebenskompass","Wie funktioniert ein Navigationssatellit?","Ein Drohnenflug über die Küste","KI für Handwerksbetriebe: Was hilft wirklich?","Die Geschichte der Rallye Paris–Dakar","Das eigene Motorrad selbst warten","Ein kleines Robotik-Projekt mit dem Enkel","Wie sieht die Mobilität in 20 Jahren aus?"],
+ferne:["Old Faithful im Yellowstone ausbrechen sehen","Unter den Redwoods stehen, den höchsten Bäumen der Welt","Island: Geysire, Gletscher und Nordlichter","Wellenreiten auf Hawaii","Mit dem Van durch Neuseeland","Das Outback Australiens bei Nacht","Tempel und Reisterrassen auf Bali","Kyoto im Herbst","Ein Kloster in Tibet besuchen","Mit dem Zug durch das Hochland von Sri Lanka","Der Große Basar in Istanbul","Thailand: Inseln und Garküchen","San Francisco und die Golden Gate Bridge","Eine Weltreise planen: Wie lange, wie teuer?","Wie leben Menschen auf einer Hallig?","Mit dem Frachtschiff reisen","Auf der Chinesischen Mauer wandern","Die Lofoten in Norwegen im Sommer","Warum reisen Menschen überhaupt?","Mit Menschen vor Ort kochen lernen","Noch einmal durch Afrika – wie wäre das heute?"],
+gemeinschaft:["Einen NFL-Abend für Freunde ausrichten","Die Nationalmannschaft gemeinsam in einer Kneipe schauen","Einen neuen Freundeskreis gründen – wie fängt man an?","In einem Segelverein Mitglied werden","Ein Nachbarschaftsfest organisieren","Über Meet5 ein eigenes Treffen anbieten","Warum machen Rituale eine Gemeinschaft stark?","Jüngeren Menschen etwas beibringen","Ein Stammtisch für Motorradfahrer","Was hält einen Verein lebendig?","Bei einem Repair-Café mitmachen","Gemeinsam kochen mit Menschen, die man kaum kennt","Ehrenamtlich Menschen an die Küste fahren","Wie entstehen echte Freundschaften im Erwachsenenalter?","Ein Pflanztag mit dem Trinkwasserwald","Menschen aus anderen Ländern in Hamburg kennenlernen","Eine Wandergruppe mitgründen","Ein Abend mit Geschichten am Lagerfeuer","Einen Kurs geben, in dem du selbst unterrichtest","Mentor für jemanden sein, der sich selbstständig macht","Ein Grillabend an der Hütte für alle Nachbarn"],
+wald:["Wie sprechen Bäume über ihre Wurzeln miteinander?","Sich einen Wald von einem Förster erklären lassen","Eine Nacht draußen im Wald verbringen","Pilze sammeln und bestimmen lernen","Was macht einen Trinkwasserwald aus?","Die nächste Pflanze vor der Tür bestimmen","Vögel an ihrem Gesang erkennen","Einen Baum pflanzen und über Jahre begleiten","Wie überleben Tiere den Winter?","Spuren im Schnee oder Matsch lesen","Die Lüneburger Heide zur Blütezeit","Barfuß durch Moos und Wald gehen","Ein Insektenhotel bauen","Wildkräuter sammeln und damit kochen","Wie entsteht ein Moor, und warum ist es so wichtig?","Der Sternenhimmel ohne Stadtlicht","Ein Wildtier lange und bewusst beobachten","Das Wattenmeer bei Ebbe erwandern","Warum werden Blätter im Herbst bunt?","Eine Stunde Waldbaden","Ein eigenes Beet anlegen"],
+bauen:["Ein altes Holzboot restaurieren","Einen Steg am Wasser bauen","Wie wurden Fachwerkhäuser ohne Nägel gebaut?","Ein Möbelstück aus Treibholz","Eine kleine Hütte oder ein Tiny House planen","Traditionelle japanische Holzverbindungen","Eine Werkstatt mit anderen teilen","Ein Musikinstrument aus Holz bauen","Wie baut man eine Brücke, die trägt?","Mit dem Enkel etwas aus Holz bauen","Die Walz: als Zimmermann auf Wanderschaft","Ein Baumhaus bauen","Holzschnitzen lernen","Wie hält ein Dachstuhl einem Sturm stand?","Alte Werkzeuge sammeln und verstehen","Ein großes Lego-Modell bauen","Nachbarn beim Bau eines Balkons begleiten","Ein Möbelstück reparieren statt wegwerfen","Wie bauen Vögel ihre Nester?","Holz aus dem Wald selbst verarbeiten","Ein kurzes Lehrvideo über dein Handwerk drehen"],
+sport:["Tae Kwon Do wieder aufnehmen – ein Probetraining","Wie bleibt man mit über 60 beweglich und stark?","Handball live in der Halle sehen","Noch einmal Skifahren in den Alpen","Wie trainieren NFL-Spieler?","Tai Chi am Morgen im Park","Die Philosophie hinter den Kampfkünsten","Ein Kampfkunstfilm mit neuen Augen","1000 Meter im Freibad schwimmen","Bouldern ausprobieren","Fünf Kilometer am Stück laufen","Beachvolleyball am Elbstrand","Wie funktioniert Muskelaufbau im Alter?","Yoga für Männer, die nie Yoga gemacht haben","Wieder einmal im Tor stehen","100 Kilometer Fahrrad an einem Tag","Beim Kindertraining im Tae Kwon Do helfen","Tischtennis im Park","Klettern im Hochseilgarten","Mit dem Fahrrad an der Elbe bis Cuxhaven","Wie wirkt Bewegung auf die Stimmung?"],
+musik:["Einen eigenen elektronischen Track bauen","Eine Salsa-Probestunde","Tango argentino – ein Abend in der Milonga","Ein Festival für elektronische Musik","Wie entsteht ein Beat? Die Technik dahinter","Tanzen, wo niemand zuschaut","Trommeln lernen","Die Geschichte des Techno in Deutschland","Ein Konzert in der Elbphilharmonie","Musik mit Klängen aus der Natur","Ein Tanzkurs – auch allein anmelden","Warum berührt uns Musik so stark?","Eine Playlist für die nächste Motorradtour","Live-Musik in einer kleinen Bar","Einen DJ-Workshop besuchen","Swing oder Lindy Hop ausprobieren","Singen in einem Männerchor","Musik aus einem fremden Land entdecken","Tanzen als Meditation","Selbst einen Tanzabend organisieren","Klänge am Wasser aufnehmen"],
+spiel:["Eine D&D-Runde gründen oder mitspielen","Ein Brettspielabend mit Freunden","Die Lieblingsfilme der eigenen Jugend wiedersehen","Ein Videospiel mit offener Welt erkunden","Eine eigene Fantasywelt erfinden","Geschichten aus deinem Leben aufschreiben","Wie erzeugen Filme Spannung?","Ein Escape Room mit Freunden","Mit dem Enkel spielen wie früher","Ein Hörbuch am Lagerfeuer","Die Geschichte von Lego","Kino unter freiem Himmel","Ein eigenes Spiel erfinden","Ein Erzählcafé: Menschen erzählen ihr Leben","Improtheater ausprobieren","Wie werden Videospiele gemacht?","Schach wieder lernen","Eine Filmnacht mit passendem Essen","Warum spielen Erwachsene so wenig?","Ein Rollenspiel draußen im Wald","Einen Kurzfilm mit dem Handy drehen"],
+nebel:["Ein Abend im Planetarium","Aquarell malen, ohne es zu können","Eine neue Sprache anfangen, etwa Japanisch","Wie entstehen schwarze Löcher?","Die Welt durch ein Kameraobjektiv sehen","Töpfern an der Drehscheibe","Ein Gedicht schreiben","Wie funktioniert unser Gedächtnis?","Ein Museum, in das du nie gehen würdest","Imkerei: ein Bienenvolk begleiten","Kochen wie in einem fremden Land"]
+};
+
+const EXPS = {
+wasser:[["Such auf der Karte drei Badestellen, die du noch nicht kennst.","Schau ein Video: Wie lernt man Surfen mit über 60?","Setz dich fünf Minuten ans Wasser und hör nur zu."],["Geh an die Alster und schau den Seglern eine halbe Stunde zu.","Ruf eine Segelschule an und frag nach einer Schnupperstunde.","Schwimm eine Runde im nächsten Bad oder See."],["Buch eine Probestunde Segeln auf der Alster.","Fahr an die Ostsee und probier eine neue Badestelle aus.","Miete ein Kanu oder SUP und erkunde die Alsterkanäle."]],
+motorrad:[["Schau dir den Trans Euro Trail für Deutschland auf der Karte an.","Such die drei höchsten Pässe, die du mit dem Motorrad erreichen kannst.","Frag eine KI: Wie funktioniert eigentlich eine Enduro?"],["Plane eine Küstenroute mit drei Badestellen.","Such ein Offroad-Training in Norddeutschland heraus.","Dreh eine Runde mit dem E-Roller um die Alster."],["Fahr die erste TET-Etappe in Norddeutschland.","Mach eine Motorradtour zur Küste und bade unterwegs.","Besuch ein Offroad-Gelände und fahr selbst."]],
+ferne:[["Schau eine kurze Doku über {z}.","Such drei Bilder von {z}, die dich berühren.","Schreib auf, warum dich {z} anzieht."],["Recherchiere beste Reisezeit, Anreise und grobe Kosten für {z}.","Sprich mit jemandem, der {z} schon erlebt hat.","Skizziere eine erste Route für {z}."],["Stell einen echten Reiseplan für {z} auf, mit Monat und Jahr.","Leg ein Reisekonto für {z} an und plane den ersten Betrag.","Mach einen {z}-Abend mit Essen, Bildern und Musik, und lade jemanden ein."]],
+gemeinschaft:[["Schreib einem Freund: Lust auf NFL am Sonntag?","Schau nach, wann die Nationalmannschaft das nächste Mal spielt.","Such auf Meet5 nach einem Treffen in deiner Nähe."],["Lade zwei, drei Leute zu einem NFL- oder Fußballabend ein.","Such einen Verein heraus, der dich reizt, und den nächsten Schnuppertag.","Biete auf Meet5 selbst ein Treffen an."],["Richte einen NFL-Abend aus, mit Snacks und erklärten Regeln.","Geh zu einem Vereinsabend oder Stammtisch.","Organisiere ein Treffen an der Hütte."]],
+wald:[["Bestimme die nächste Pflanze vor deiner Tür.","Hör fünf Minuten einem Vogel zu und versuch, ihn zu erkennen.","Finde vom Fenster aus drei verschiedene Grüntöne."],["Geh eine halbe Stunde in den Wald, ohne Handy.","Sammle drei Blätter und bestimme die Bäume dazu.","Such heraus, wann der nächste Pflanztag beim Trinkwasserwald ist."],["Mach bei einem Pflanztag mit.","Wandere einen halben Tag durch einen Wald, den du nicht kennst.","Übernachte einmal draußen unter freiem Himmel."]],
+bauen:[["Skizziere eine Idee für einen Steg oder ein Möbelstück.","Schau ein Video über japanische Holzverbindungen.","Nimm ein Stück Holz in die Hand und überleg, was es werden will."],["Repariere etwas, das schon lange kaputt ist.","Bau mit dem Enkel etwas Kleines aus Holz.","Besuch eine offene Werkstatt oder ein Repair-Café."],["Bau ein Insektenhotel oder ein Vogelhaus.","Fang ein Möbelstück aus Treibholz an.","Hilf jemandem bei einem Bauprojekt."]],
+sport:[["Mach fünf Minuten Dehnen oder Tae-Kwon-Do-Grundstellungen.","Such ein Tae-Kwon-Do-Training für Ältere in Hamburg.","Schau ein kurzes Video über NFL-Taktik."],["Schwimm eine halbe Stunde.","Vereinbare ein Probetraining, Tae Kwon Do oder Tai Chi.","Fahr mit dem Rad eine neue Strecke an der Elbe."],["Geh zu einem Probetraining.","Fahr mit dem Rad an der Elbe entlang, so weit du Lust hast.","Geh bouldern oder in den Hochseilgarten."]],
+musik:[["Hör einen elektronischen Track ganz bewusst mit Kopfhörern.","Tanz zu einem Lied in der Küche.","Such einen Salsa- oder Tangokurs in deiner Nähe."],["Bau in einer Musik-App einen einfachen Beat.","Stell eine Playlist für die nächste Motorradtour zusammen.","Frag bei einer Tanzschule nach einer Probestunde."],["Geh zu einer Salsa- oder Tango-Probestunde.","Besuch einen Abend mit elektronischer Musik.","Geh zu einem Konzert, das du allein nie ausgesucht hättest."]],
+spiel:[["Such, ob es in Hamburg D&D-Runden für Erwachsene gibt.","Denk an deinen Lieblingsfilm von früher und warum er es war.","Schreib eine kleine Geschichte aus deinem Leben auf, fünf Sätze."],["Schau einen alten Lieblingsfilm wieder.","Spiel ein Brettspiel mit jemandem.","Erfinde eine Figur für eine Fantasygeschichte."],["Spiel eine D&D-Runde mit, oder lade selbst zu einer ein.","Organisiere einen Spieleabend.","Geh mit anderen in einen Escape Room."]],
+nebel:[["Schau heute Abend bewusst in den Sternenhimmel.","Lerne fünf Wörter einer neuen Sprache.","Fotografiere drei Dinge, die dir sonst nie auffallen."],["Mal ein Aquarell, egal wie es wird.","Schreib ein kleines Gedicht über das Wasser.","Koch ein Gericht aus einem Land, das du nicht kennst."],["Besuch das Planetarium.","Mach einen Töpfer- oder Malkurs zum Ausprobieren.","Geh in ein Museum, das du nie gewählt hättest."]]
+};
+
+/* ---------- Interesse (Etappe 4) ---------- */
+const ROUND_SIZE = 15;
+const LEVELS = ["Im Nebel","Gesichtet","Betreten","Erkundet"];
+const LEVEL_TXT = ["Noch unentdeckt. Vielleicht wartet hier etwas.","Etwas hat dich hier neugierig gemacht.","Du warst schon dort und hast Spuren hinterlassen.","Hierhin zieht es dich immer wieder."];
+function intS(){
+  if(!S.int) S.int = { hits:{}, exp:{}, bonus:{}, modes:{}, seen:[], pending:[], dreams:DREAMS.slice(), round:null, rounds:0 };
+  return S.int;
+}
+function isleById(id){ return ISLES.find(i=>i.id===id); }
+function isleLevel(id){
+  const I=intS(), h=I.hits[id]||0, e=I.exp[id]||0, p=h+2*e+(I.bonus[id]||0);
+  if(e>=1 && p>=6) return 3;
+  if(e>=1 || p>=3) return 2;
+  if(p>=1) return 1;
+  return 0;
+}
+function blob(cx,cy,rx,ry,k){
+  const n=8, pts=[];
+  for(let j=0;j<n;j++){ const a=j/n*Math.PI*2, f=k[j%k.length]; pts.push([cx+Math.cos(a)*rx*f, cy+Math.sin(a)*ry*f]); }
+  const mid=(p,q)=>[(p[0]+q[0])/2,(p[1]+q[1])/2];
+  const m0=mid(pts[n-1],pts[0]); let d=`M${m0[0].toFixed(1)} ${m0[1].toFixed(1)}`;
+  for(let j=0;j<n;j++){ const p=pts[j], m=mid(p,pts[(j+1)%n]); d+=` Q${p[0].toFixed(1)} ${p[1].toFixed(1)} ${m[0].toFixed(1)} ${m[1].toFixed(1)}`; }
+  return d+" Z";
+}
+function intMap(){
+  const sel=ui.intSel;
+  const lv={}; ISLES.forEach(i=>lv[i.id]=isleLevel(i.id));
+  const routes=BRIDGES.filter(([a,b])=>lv[a]>=2&&lv[b]>=2).map(([a,b])=>{ const A=isleById(a),B=isleById(b); return `<line x1="${A.cx}" y1="${A.cy}" x2="${B.cx}" y2="${B.cy}" stroke="#B98A4E" stroke-width="2" stroke-dasharray="4 5" stroke-linecap="round"/>`; }).join("");
+  const waves=[[20,28],[208,112],[140,392],[312,138],[18,196],[320,318]].map(([x,y])=>`<path d="M${x} ${y} q 8 -5 16 0 t 16 0" fill="none" stroke="var(--wave)" stroke-width="1.5"/>`).join("");
+  const isles=ISLES.map(i=>{
+    const l=lv[i.id], on=sel===i.id;
+    const fill = l>=3?"var(--isle3)":l===2?"var(--isle2)":"var(--isle0)";
+    const stroke = l>=2?"var(--isle-line)":"var(--muted)";
+    let extra="";
+    if(l>=3){ const fx=i.cx+i.rx*.35, fy=i.cy-i.ry*.25;
+      extra=`<circle cx="${i.cx-i.rx*.35}" cy="${i.cy+i.ry*.1}" r="5" fill="var(--tree)"/><circle cx="${i.cx-i.rx*.1}" cy="${i.cy+i.ry*.35}" r="4" fill="var(--tree)"/><line x1="${fx}" y1="${fy}" x2="${fx}" y2="${fy-18}" stroke="var(--ink)" stroke-width="1.5"/><path d="M${fx} ${fy-18} l12 4 l-12 4 Z" fill="#D9713C"/>`; }
+    if(l===0) extra=`<circle cx="${i.cx}" cy="${i.cy}" r="21" fill="var(--fog)" opacity=".93"/><circle cx="${i.cx-16}" cy="${i.cy+6}" r="16" fill="var(--fog)" opacity=".93"/><circle cx="${i.cx+16}" cy="${i.cy+4}" r="16" fill="var(--fog)" opacity=".93"/>`;
+    return `${on?`<ellipse cx="${i.cx}" cy="${i.cy}" rx="${i.rx+6}" ry="${i.ry+6}" fill="none" stroke="var(--accent)" stroke-width="2"/>`:""}
+      <path d="${blob(i.cx,i.cy,i.rx,i.ry,i.k)}" fill="${fill}" stroke="${stroke}" stroke-width="1.5" ${l===1?'stroke-dasharray="4 3"':""}/>${extra}
+      <text x="${i.cx}" y="${i.cy+i.ry+18}" text-anchor="middle" font-size="12" font-weight="600" fill="${l===0?"var(--muted)":"var(--ink)"}">${esc(i.name)}</text>`;
+  }).join("");
+  const btns=ISLES.map(i=>`<button class="isle-btn" style="left:${i.cx-i.rx-4}px;top:${i.cy-i.ry-8}px;width:${(i.rx+4)*2}px;height:${i.ry*2+30}px" data-act="int-sel" data-v="${i.id}" aria-pressed="${sel===i.id}" aria-label="${esc(i.name)}, ${LEVELS[lv[i.id]]}"></button>`).join("");
+  return `<div class="map"><svg width="358" height="400" viewBox="0 0 358 400" aria-hidden="true">${waves}${routes}${isles}</svg>${btns}</div>`;
+}
+function intBar(back="#/"){ return `<div class="bar"><button class="back" data-act="${back==="#/"?"go":"int-home"}" data-to="#/">‹ ${back==="#/"?"Kompass":"Karte"}</button><span class="kicker">Interesse</span><button class="pill" data-act="go" data-to="#/pause">Pause</button></div>`; }
+
+function screenInt(){
+  const I=intS(), v=ui.intView||"map";
+  if(I.round) return screenIntRound();
+  if(v==="exp") return screenIntExp();
+  if(v==="reflect") return screenIntReflect();
+  const sel=ui.intSel ? isleById(ui.intSel) : null;
+  const pend=I.pending[0];
+  const modeTot=Object.values(I.modes).reduce((a,b)=>a+b,0);
+  const topModes=Object.entries(I.modes).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  let selCard="";
+  if(sel){
+    const l=isleLevel(sel.id);
+    selCard=`<div class="card"><div class="kicker">${LEVELS[l]}</div><h2>${esc(sel.name)}</h2>
+      <div class="muted small" style="line-height:1.45">${LEVEL_TXT[l]}</div>
+      ${sel.id==="ferne"?`<div class="small" style="font-weight:600;margin-top:8px">Deine Traumziele</div>
+        <div class="chips">${I.dreams.map(d=>`<span class="chip dream">${esc(d)}<button class="x" data-act="int-dream-del" data-v="${esc(d)}" aria-label="${esc(d)} entfernen">×</button></span>`).join("")}</div>
+        <div class="row" style="flex-wrap:nowrap"><input class="t" id="intDream" maxlength="30" placeholder="Neues Traumziel" style="height:44px"><button class="btn sm line" data-act="int-dream-add">Dazu</button></div>`:""}
+      <button class="btn sm" style="align-self:flex-start;margin-top:8px" data-act="int-exp" data-v="${sel.id}">Expedition</button></div>`;
+  }
+  return `${intBar()}
+    <h1>Deine Entdeckerkarte</h1>
+    <div class="muted" style="line-height:1.45;margin-top:-8px">Wo du neugierig warst, lichtet sich der Nebel.</div>
+    ${pend?`<div class="card"><div class="kicker">Offene Expedition · ${esc(isleById(pend.isle).name)}</div>
+      <div style="line-height:1.45">${esc(pend.text)}</div>
+      <div class="row" style="margin-top:6px"><button class="btn sm" data-act="int-done" data-v="${pend.id}">Erledigt – nachspüren</button><button class="btn sm quiet" data-act="int-drop" data-v="${pend.id}">Verwerfen</button></div></div>`:""}
+    ${intMap()}
+    ${selCard || `<div class="soft small">Tippe auf eine Insel für eine Expedition, oder starte eine Runde mit Karten, damit sich der Nebel lichtet.</div>`}
+    <button class="btn" data-act="int-round">Neue Runde · ca. 4 Min.</button>
+    ${modeTot?`<div class="card"><div class="kicker">Was dich an Dingen reizt</div>${topModes.map(([m,n])=>`<div class="mode"><span>${MODES[m]}</span><span class="track"><span style="width:${Math.round(n/topModes[0][1]*100)}%"></span></span></div>`).join("")}</div>`:""}`;
+}
+
+function intPickRound(){
+  const I=intS(); const ids=[];
+  const pools={}; ISLES.forEach(i=>{ const all=CARDS[i.id].map((_,n)=>i.id+":"+n); let un=all.filter(x=>!I.seen.includes(x)); if(!un.length){ I.seen=I.seen.filter(x=>!x.startsWith(i.id+":")); un=all; } pools[i.id]=un.sort(()=>Math.random()-.5); });
+  const order=ISLES.map(i=>i.id).sort(()=>Math.random()-.5);
+  let k=0; while(ids.length<ROUND_SIZE && k<100){ const id=order[k%order.length]; if(pools[id].length) ids.push(pools[id].shift()); k++; }
+  return ids.sort(()=>Math.random()-.5);
+}
+function cardText(ref){ const [id,n]=ref.split(":"); return CARDS[id][+n]; }
+
+function screenIntRound(){
+  const R=intS().round;
+  if(R.i < R.ids.length){
+    const ref=R.ids[R.i];
+    return `${intBar("map")}
+      <div style="display:flex;flex-direction:column;gap:8px"><div class="steps" aria-hidden="true" style="display:grid;grid-template-columns:repeat(${R.ids.length},1fr)">${R.ids.map((_,n)=>`<i class="${n<R.i?"on":""}"></i>`).join("")}</div>
+      <div class="small muted">Karte ${R.i+1} von ${R.ids.length} · spontan, aus dem Bauch</div></div>
+      <div class="bigcard"><div>${esc(cardText(ref))}</div></div>
+      <div class="row" style="flex-wrap:nowrap">
+        <button class="btn quiet" data-act="int-card" data-v="0">Lässt mich kalt</button>
+        <button class="btn" data-act="int-card" data-v="1">Zieht mich an</button></div>
+      <button class="linkbtn" data-act="int-round-end">Runde vorzeitig beenden</button>`;
+  }
+  const hits=R.hits, q=R.reflect||0;
+  if(q < Math.min(3,hits.length)){
+    const ref=hits[q];
+    return `${intBar("map")}<div class="kicker">Nachspüren · ${q+1} von ${Math.min(3,hits.length)}</div>
+      <h1>Was reizt dich daran?</h1>
+      <div class="soft" style="font-family:var(--serif);font-size:18px;color:var(--ink)">${esc(cardText(ref))}</div>
+      <div style="display:flex;flex-direction:column;gap:8px">${Object.entries(MODES).map(([k,l])=>`<button class="chip" style="height:48px;border-radius:14px;font-size:16px" data-act="int-mode" data-v="${k}">${l}</button>`).join("")}</div>
+      <button class="linkbtn" data-act="int-mode" data-v="">Überspringen</button>`;
+  }
+  const byIsle={}; hits.forEach(r=>{ const id=r.split(":")[0]; byIsle[id]=(byIsle[id]||0)+1; });
+  const list=Object.entries(byIsle).sort((a,b)=>b[1]-a[1]);
+  return `${intBar("map")}<div class="kicker">Runde geschafft</div>
+    <h1>${hits.length ? "Hier hat sich der Nebel gelichtet" : "Heute hat nichts gezogen"}</h1>
+    ${hits.length ? `<div class="card">${list.map(([id,n])=>`<div style="display:flex;justify-content:space-between;gap:8px;min-height:32px;align-items:center"><span>${esc(isleById(id).name)}</span><span class="kicker">${n}× zieht an</span></div>`).join("")}</div>`
+      : `<div class="muted" style="line-height:1.45">Auch das ist eine Auskunft. Manchmal braucht Neugier einfach einen anderen Tag.</div>`}
+    <button class="btn" data-act="int-round-close">Zur Karte</button>`;
+}
+
+function screenIntExp(){
+  const x=ui.intExp, isle=isleById(x.isle), I=intS();
+  if(x.isle==="ferne" && !x.dream){
+    return `${intBar("map")}<div class="kicker">Expedition · Ferne Länder</div>
+      <h1>Welches Traumziel?</h1>
+      <div class="chips">${I.dreams.map(d=>`<button class="chip" data-act="int-exp-dream" data-v="${esc(d)}">${esc(d)}</button>`).join("")}</div>
+      ${I.dreams.length?"":`<div class="soft small">Füge auf der Karte bei „Ferne Länder“ ein Traumziel hinzu.</div>`}`;
+  }
+  if(x.t==null || x.e==null){
+    const ch=(key,vals)=>vals.map((l,n)=>`<button class="chip ${x[key]===n?"on":""}" style="height:48px;flex:1" data-act="int-exp-set" data-k="${key}" data-v="${n}" aria-pressed="${x[key]===n}">${l}</button>`).join("");
+    return `${intBar("map")}<div class="kicker">Expedition · ${esc(isle.name)}${x.dream?" · "+esc(x.dream):""}</div>
+      <h1>Wie viel hast du gerade?</h1>
+      <div class="small" style="font-weight:600">Zeit</div><div class="row" style="flex-wrap:nowrap">${ch("t",["5 Minuten","½ Stunde","½ Tag"])}</div>
+      <div class="small" style="font-weight:600">Energie</div><div class="row" style="flex-wrap:nowrap">${ch("e",["wenig","mittel","viel"])}</div>`;
+  }
+  const size=Math.min(x.t, x.e+1);
+  const opts=EXPS[x.isle][size]; const text=opts[(x.alt||0)%opts.length].replace(/\{z\}/g, x.dream||"");
+  x.text=text; x.size=size;
+  return `${intBar("map")}<div class="kicker">Expedition · ${esc(isle.name)}${x.dream?" · "+esc(x.dream):""}</div>
+    <h1>Dein Vorschlag</h1>
+    <div class="bigcard" style="min-height:160px"><div>${esc(text)}</div></div>
+    <button class="btn" data-act="int-exp-take">Nehme ich mir vor</button>
+    <button class="btn quiet" data-act="int-exp-alt">Anderer Vorschlag</button>
+    <button class="linkbtn" data-act="int-exp-reset">Zeit und Energie ändern</button>`;
+}
+
+function screenIntReflect(){
+  const I=intS(), p=I.pending.find(x=>x.id===ui.intReflect); if(!p){ ui.intView="map"; return screenInt(); }
+  const m=ui.intMore;
+  return `${intBar("map")}<div class="kicker">Nach der Expedition · ${esc(isleById(p.isle).name)}</div>
+    <h1>Wie war's?</h1>
+    <div class="soft">${esc(p.text)}</div>
+    <label class="f" for="intTouch">Was hat dich berührt?</label>
+    <textarea class="t" id="intTouch" rows="3"></textarea>
+    <label class="f" for="intTell">Wem möchtest du davon erzählen?</label>
+    <input class="t" id="intTell" maxlength="60" autocomplete="off" placeholder="Einem Menschen oder einer Gruppe">
+    <div class="f">Mehr davon?</div>
+    <div class="row" style="flex-wrap:nowrap">${[["ja","Ja"],["vielleicht","Vielleicht"],["nein","Eher nicht"]].map(([k,l])=>`<button class="chip ${m===k?"on":""}" style="height:48px;flex:1" data-act="int-more" data-v="${k}" aria-pressed="${m===k}">${l}</button>`).join("")}</div>
+    <div id="intErr" class="small" style="color:var(--danger);min-height:18px"></div>
+    <button class="btn" data-act="int-save">Ins Journal</button>`;
+}
+
+function intAction(a,b){
+  const I=intS(), v=b.dataset.v;
+  if(a==="int-home"){ ui.intView="map"; render(); window.scrollTo(0,0); }
+  else if(a==="int-sel"){ ui.intSel = ui.intSel===v?null:v; render(); }
+  else if(a==="int-round"){ I.round={ ids:intPickRound(), i:0, hits:[], reflect:0 }; save(); render(); window.scrollTo(0,0); }
+  else if(a==="int-card"){
+    const R=I.round, ref=R.ids[R.i], id=ref.split(":")[0];
+    if(v==="1"){ R.hits.push(ref); I.hits[id]=(I.hits[id]||0)+1; }
+    if(!I.seen.includes(ref)) I.seen.push(ref);
+    R.i++; save(); render();
+  }
+  else if(a==="int-round-end"){ I.round.ids=I.round.ids.slice(0,I.round.i); save(); render(); }
+  else if(a==="int-mode"){ const R=I.round; if(v) I.modes[v]=(I.modes[v]||0)+1; R.reflect=(R.reflect||0)+1; save(); render(); }
+  else if(a==="int-round-close"){ I.rounds=(I.rounds||0)+1; I.round=null; ui.intView="map"; save(); render(); window.scrollTo(0,0); }
+  else if(a==="int-dream-add"){ const f=document.getElementById("intDream"); const d=f.value.trim(); if(d && !I.dreams.some(x=>x.toLowerCase()===d.toLowerCase())){ I.dreams.push(d); save(); } render(); }
+  else if(a==="int-dream-del"){ I.dreams=I.dreams.filter(x=>x!==v); save(); render(); }
+  else if(a==="int-exp"){ ui.intExp={ isle:v, t:null, e:null, alt:0, dream:null }; ui.intView="exp"; render(); window.scrollTo(0,0); }
+  else if(a==="int-exp-dream"){ ui.intExp.dream=v; render(); }
+  else if(a==="int-exp-set"){ ui.intExp[b.dataset.k]=+v; render(); }
+  else if(a==="int-exp-alt"){ ui.intExp.alt=(ui.intExp.alt||0)+1; render(); }
+  else if(a==="int-exp-reset"){ ui.intExp.t=null; ui.intExp.e=null; render(); }
+  else if(a==="int-exp-take"){
+    const x=ui.intExp, id=uid();
+    addCheckin({ area:"interesse", text:x.text, inDays:2, link:"#/bereich/interesse" });
+    I.pending.unshift({ id, isle:x.isle, dream:x.dream, text:x.text, size:x.size, ci:S.checkins[S.checkins.length-1].id, date:new Date().toISOString() });
+    ui.intView="map"; ui.intSel=null; save(); toast("Vorgemerkt. Viel Freude bei der Expedition!"); render(); window.scrollTo(0,0);
+  }
+  else if(a==="int-drop"){ const p=I.pending.find(x=>x.id===v); if(p){ const c=S.checkins.find(c=>c.id===p.ci); if(c) c.done=true; } I.pending=I.pending.filter(x=>x.id!==v); save(); render(); }
+  else if(a==="int-done"){ ui.intReflect=v; ui.intMore=null; ui.intView="reflect"; render(); window.scrollTo(0,0); }
+  else if(a==="int-more"){ const t=document.getElementById("intTouch").value, w=document.getElementById("intTell").value; ui.intMore=v; render(); document.getElementById("intTouch").value=t; document.getElementById("intTell").value=w; }
+  else if(a==="int-save"){
+    const p=I.pending.find(x=>x.id===ui.intReflect); if(!p) return;
+    if(!ui.intMore){ document.getElementById("intErr").textContent="Tippe noch an: Mehr davon?"; return; }
+    const touch=document.getElementById("intTouch").value.trim(), tell=document.getElementById("intTell").value.trim();
+    const moreTxt={ja:"Ja",vielleicht:"Vielleicht",nein:"Eher nicht"}[ui.intMore];
+    const L=["Expedition: "+p.text]; if(touch) L.push("Berührt hat mich: "+touch); if(tell) L.push("Erzählen möchte ich es: "+tell); L.push("Mehr davon: "+moreTxt);
+    addEntry({ area:"interesse", title:isleById(p.isle).name+(p.dream?" · "+p.dream:""), text:L.join("\n"), meta:{ isle:p.isle, dream:p.dream, more:ui.intMore } });
+    I.exp[p.isle]=(I.exp[p.isle]||0)+1; I.bonus[p.isle]=(I.bonus[p.isle]||0)+({ja:2,vielleicht:1,nein:0}[ui.intMore]);
+    const c=S.checkins.find(c=>c.id===p.ci); if(c) c.done=true;
+    I.pending=I.pending.filter(x=>x.id!==p.id); ui.intView="map"; ui.intMore=null; save();
+    toast("Im Journal festgehalten. Die Karte ist gewachsen."); render(); window.scrollTo(0,0);
+  }
+}
+
 /* ---------- Router ---------- */
 function render(){
   clearTimeout(breathTimer); breathTimer=null; clearInterval(losTick); losTick=null;
@@ -748,6 +1006,7 @@ function render(){
   else if(h==="#/mehr") html=screenMehr();
   else if(h==="#/bereich/loslassen") html=screenLos();
   else if(h==="#/bereich/erkennen") html=screenErk();
+  else if(h==="#/bereich/interesse") html=screenInt();
   else if(h.startsWith("#/bereich/")) html=screenBereich(h.slice(10));
   else html=screenStart();
   app.innerHTML = html;
@@ -755,7 +1014,7 @@ function render(){
   if(h==="#/bereich/loslassen") losAfterRender();
 }
 let lastRoute = "#/";
-window.addEventListener("hashchange", ()=>{ ui.confirmDel=null; ui.confirmWipe=false; ui.losBackfill=false; ui.losConfirmDiscard=false; ui.erkConfirmCancel=false; render(); window.scrollTo(0,0); });
+window.addEventListener("hashchange", ()=>{ ui.confirmDel=null; ui.confirmWipe=false; ui.losBackfill=false; ui.losConfirmDiscard=false; ui.erkConfirmCancel=false; ui.intView="map"; render(); window.scrollTo(0,0); });
 
 function startBreath(){
   const b=document.getElementById("breath"), t=document.getElementById("breathTxt");
@@ -811,6 +1070,7 @@ app.addEventListener("click", e=>{
   }
   else if(a==="ci-done"||a==="ci-later"||a==="ci-drop"){
     const c=S.checkins.find(x=>x.id===id); if(!c) return;
+    if(a==="ci-done" && c.link){ save(); location.hash=c.link; return; }
     if(a==="ci-done"){ c.done=true; addEntry({area:c.area, title:"Kleiner Schritt geschafft", text:c.text}); toast("Schön! Das steht jetzt im Journal."); }
     if(a==="ci-later"){ c.due=Date.now()+2*864e5; toast("Ich frage in zwei Tagen noch mal."); }
     if(a==="ci-drop"){ c.done=true; }
@@ -818,6 +1078,7 @@ app.addEventListener("click", e=>{
   }
   else if(a.startsWith("los-")) losAction(a,b);
   else if(a.startsWith("erk-")) erkAction(a,b);
+  else if(a.startsWith("int-")) intAction(a,b);
   else if(a==="export") doExport();
   else if(a==="snooze"){ S.backupSnooze=new Date().toISOString(); save(); render(); }
   else if(a==="import") document.getElementById("importFile").click();
