@@ -127,7 +127,7 @@ textarea.t{resize:vertical;min-height:120px}
 "use strict";
 /* ---------- Daten ---------- */
 const KEY = "lebenskompass.v1";
-const VERSION = "Etappe 5";
+const VERSION = "Etappe 5.1";
 const DIRS = {
   erkennen:  { name:"Erkennen",  pos:"n", rot:0,   kicker:"Oben · Beginn", text:"Was hält dich gerade ab? Welche stille Regel bremst dich?", cta:"Starten" },
   loslassen: { name:"Loslassen", pos:"e", rot:90,  kicker:"Rechts", text:"Stärke einschätzen, Gefühl benennen, im Körper beschreiben, dabeibleiben, bis es nachlässt.", cta:"Runde beginnen" },
@@ -181,7 +181,7 @@ function entryKicker(e, when){
   const p=[areaName(e.area)], m=e.meta||{};
   if(e.area==="freude" && m.qualities && m.qualities.length && !m.essence) p.push(m.qualities.join(", "));
   if(e.area==="freude" && m.strength && !m.tried) p.push(m.strength+" von 5");
-  if(m.love && m.love.length) p.push("♡ "+m.love.map(k=>({partnerschaft:"Partnerschaft",freundschaft:"Freundschaft",familie:"Familie",welt:"Zuwendung zur Welt",selbst:"Selbstliebe"}[k]||k)).join(", "));
+  if(m.love && m.love.length) p.push("♡ "+m.love.map(k=>({partnerschaft:"Eros (Partnerschaft)",freundschaft:"Philia (Freundschaft)",familie:"Storge (Familie)",welt:"Agape (Zuwendung zur Welt)",selbst:"Philautia (Selbstliebe)"}[k]||k)).join(", "));
   p.push(when); return p.join(" · ");
 }
 function areaName(a){ return DIRS[a] ? DIRS[a].name : "Notiz"; }
@@ -1027,7 +1027,7 @@ const LIBRARY = [
   ["l27","Holz sägen, hobeln oder schnitzen",["Schaffen","Sinne"]],["l28","Sich hinlegen und den Wolken nachschauen",["Leichtigkeit","Staunen"]]
 ];
 function frS(){ if(!S.fr) S.fr={ essences:[], lib:{}, own:[], pending:[], ess:null }; return S.fr; }
-function loveName(k){ const l=LOVE.find(x=>x[0]===k); return l?l[1]:k; }
+function loveName(k){ const l=LOVE.find(x=>x[0]===k); return l?`${l[2]} (${l[1]})`:k; }
 function frBar(back){ return `<div class="bar"><button class="back" data-act="${back?"fr-home":"go"}" data-to="#/">‹ ${back?"Freude":"Kompass"}</button><span class="kicker">Freude</span><button class="pill" data-act="go" data-to="#/pause">Pause</button></div>`; }
 function frChips(list,sel,act,max){ return `<div class="chips">${list.map(q=>{ const on=sel.includes(q); return `<button class="chip ${on?"on":""}" data-act="${act}" data-v="${esc(q)}" aria-pressed="${on}">${esc(q)}</button>`; }).join("")}</div>`; }
 function allForms(){ const F=frS(); return LIBRARY.map(([id,form,q])=>({id,form,q,own:false})).concat(F.own.map(o=>({id:o.id,form:o.form,q:o.q||[],own:true}))); }
@@ -1050,7 +1050,8 @@ function screenFr(){
     <button class="path" data-act="fr-view" data-v="essenz"><span class="k">Für ruhige Zeiten · ca. 15 Minuten</span><span class="t">${F.ess?"Essenz finden (fortsetzen)":"Essenz finden"}</span><span class="d">Eine Reise zu dem, was dir als Kind wahre Freude gemacht hat, und was darunter liegt.</span></button>
     <button class="path" data-act="fr-view" data-v="lib"><span class="k">Von anderen lernen</span><span class="t">Freude ausprobieren</span><span class="d">${allForms().length} Freude-Formen anderer Menschen. Probier eine aus und schau, was sie mit dir macht.</span></button>
     <div class="card"><div class="kicker">Liebe in deinem Leben</div>
-      ${tot ? LOVE.map(([k,l,g])=>`<div class="mode" style="grid-template-columns:1fr 90px 22px"><span>${l} <span class="muted small">${g}</span></span><span class="track"><span style="width:${Math.round((counts[k]||0)/mx*100)}%"></span></span><span class="small" style="text-align:right">${counts[k]||0}</span></div>`).join("")
+      <div class="muted small" style="line-height:1.45;margin-bottom:4px">Schon die alten Griechen unterschieden fünf Formen der Liebe.</div>
+      ${tot ? LOVE.map(([k,l,g])=>`<div class="mode" style="grid-template-columns:1fr 90px 22px"><span><b>${g}</b> <span class="muted small">(${l})</span></span><span class="track"><span style="width:${Math.round((counts[k]||0)/mx*100)}%"></span></span><span class="small" style="text-align:right">${counts[k]||0}</span></div>`).join("")
         : `<div class="muted small" style="line-height:1.45">Wenn du einen Moment festhältst, kannst du angeben, ob Liebe im Spiel war. Hier siehst du dann, in wie vielen Formen sie schon in deinem Leben ist.</div>`}
     </div>
     <div style="display:flex;flex-direction:column;gap:8px">
@@ -1073,7 +1074,7 @@ function screenFrMoment(){
     <div class="f">Wie stark?</div>
     <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px">${[1,2,3,4,5].map(n=>`<button class="chip ${m.lv===n?"on":""}" style="height:44px" data-act="fr-m-lv" data-v="${n}" aria-pressed="${m.lv===n}" aria-label="Stärke ${n} von 5">${n}</button>`).join("")}</div>
     <div class="f">War dabei Liebe im Spiel? <span class="muted small" style="font-family:var(--sans);font-weight:400">(optional)</span></div>
-    ${frChips(LOVE.map(l=>l[1]),m.love.map(loveName),"fr-m-love")}
+    ${frChips(LOVE.map(l=>loveName(l[0])),m.love.map(loveName),"fr-m-love")}
     <label class="f" for="frTell">Wem möchtest du davon erzählen?</label>
     <input class="t" id="frTell" maxlength="60" autocomplete="off" placeholder="Einem Menschen oder einer Gruppe" value="${esc(m.tell||"")}">
     <button class="btn" data-act="fr-m-save" style="margin-top:6px">Ins Journal</button>`;
@@ -1133,7 +1134,7 @@ function screenFrTry(){
     <div class="f">Passt diese Form zu dir?</div>
     <div class="row" style="flex-wrap:nowrap">${[["ja","Ja"],["vielleicht","Vielleicht"],["nein","Eher nicht"]].map(([k,l])=>`<button class="chip ${t.fit===k?"on":""}" style="height:48px;flex:1" data-act="fr-t-fit" data-v="${k}" aria-pressed="${t.fit===k}">${l}</button>`).join("")}</div>
     <div class="f">War dabei Liebe im Spiel? <span class="muted small" style="font-family:var(--sans);font-weight:400">(optional)</span></div>
-    ${frChips(LOVE.map(l=>l[1]),t.love.map(loveName),"fr-t-love")}
+    ${frChips(LOVE.map(l=>loveName(l[0])),t.love.map(loveName),"fr-t-love")}
     <label class="f" for="frNote">Ein Satz dazu <span class="muted small" style="font-family:var(--sans);font-weight:400">(optional)</span></label>
     <textarea class="t" id="frNote" rows="2">${esc(t.note||"")}</textarea>
     <div id="frErr" class="small" style="color:var(--danger);min-height:18px"></div>
@@ -1143,7 +1144,7 @@ function screenFrTry(){
 function frErr(m){ const e=document.getElementById("frErr"); if(e) e.textContent=m; }
 function frAction(a,b){
   const F=frS(), v=b.dataset.v;
-  const loveKey=name=>(LOVE.find(l=>l[1]===name)||[])[0];
+  const loveKey=name=>(LOVE.find(l=>loveName(l[0])===name)||[])[0];
   const toggle=(arr,x,max)=>arr.includes(x)?arr.filter(y=>y!==x):(max&&arr.length>=max?arr.slice(1).concat([x]):arr.concat([x]));
   if(a==="fr-home"){ ui.frView="main"; render(); window.scrollTo(0,0); }
   else if(a==="fr-view"){ ui.frView=v; if(v==="moment") ui.frM={q:[],lv:null,love:[]}; render(); window.scrollTo(0,0); }
