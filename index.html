@@ -110,7 +110,7 @@ textarea.t{resize:vertical;min-height:120px}
 "use strict";
 /* ---------- Daten ---------- */
 const KEY = "lebenskompass.v1";
-const VERSION = "Etappe 2";
+const VERSION = "Etappe 3";
 const DIRS = {
   erkennen:  { name:"Erkennen",  pos:"n", rot:0,   kicker:"Oben · Beginn", text:"Was hält dich gerade ab? Welche stille Regel bremst dich?", cta:"Starten" },
   loslassen: { name:"Loslassen", pos:"e", rot:90,  kicker:"Rechts", text:"Stärke einschätzen, Gefühl benennen, im Körper beschreiben, dabeibleiben, bis es nachlässt.", cta:"Runde beginnen" },
@@ -320,8 +320,13 @@ function screenMehr(){
 
 /* ---------- Loslassen (Etappe 2) ---------- */
 let losTick = null;
-const LOS_NAMES = ["Angst","Traurigkeit","Wut","Scham","Einsamkeit","Enge","Leere","Unruhe","Schuld","Ohnmacht"];
+const LOS_NAMES = ["Angst","Traurigkeit","Wut","Scham","Einsamkeit","Unsicherheit","Enge","Leere","Unruhe","Schuld","Ohnmacht"];
 const LOS_BODY = ["Brust","Bauch","Hals","Kiefer","Schultern","eng","schwer","warm","kalt","drückend","ziehend","kribbelnd","pochend","hohl"];
+function uniqCI(arr){ const seen=new Set(); return arr.filter(x=>{ if(!x) return false; const k=x.toLowerCase(); if(seen.has(k)) return false; seen.add(k); return true; }); }
+function learnWord(listKey, word, defaults){
+  const w=String(word).trim(); if(!w || defaults.some(d=>d.toLowerCase()===w.toLowerCase())) return;
+  S[listKey] = uniqCI([w].concat(S[listKey]||[])).slice(0,8);
+}
 function fmtV(v){ return String(v).replace(".",","); }
 function losNew(){ return { begun:new Date().toISOString(), situation:"", rounds:[], cur:null, step:"arrive", final:null, closing:"" }; }
 function losSteps(n){ return `<div class="steps" aria-hidden="true">${[1,2,3,4].map(i=>`<i class="${i<=n?"on":""}"></i>`).join("")}</div>`; }
@@ -372,7 +377,7 @@ function screenLos(){
       <h1>Wie heißt das Gefühl in dieser Runde?</h1>
       <div class="muted" style="line-height:1.45">Das ist die Überschrift für diese Runde. Es darf auch ein anderes Gefühl sein als eben.</div>
       <input class="t" id="losErrSrc" maxlength="40" autocomplete="off" value="${esc(L.cur.name||"")}" aria-label="Name des Gefühls" placeholder="${prev?esc("Letzte Runde: "+prev):"z. B. Einsamkeit"}">
-      <div class="chips">${(prev?[prev]:[]).concat(LOS_NAMES.filter(x=>x!==prev)).map(x=>`<button class="chip" data-act="los-pick" data-v="${esc(x)}">${esc(x)}</button>`).join("")}</div>
+      <div class="chips">${uniqCI([prev].concat(S.myFeelings||[], LOS_NAMES)).map(x=>`<button class="chip" data-act="los-pick" data-v="${esc(x)}">${esc(x)}</button>`).join("")}</div>
       <div id="losErr" class="small" style="color:var(--danger);min-height:18px"></div>
       <button class="btn" data-act="los-name">Weiter</button>
       ${losCancel()}`;
@@ -382,7 +387,7 @@ function screenLos(){
       <h1>Wo spürst du „${esc(L.cur.name)}“ im Körper?</h1>
       <div class="muted" style="line-height:1.45">Beschreibe es so konkret wie möglich: Ort, Größe, Form, Temperatur, Druck, Bewegung.</div>
       <textarea class="t" id="losErrSrc" rows="4" aria-label="Beschreibung im Körper" placeholder="z. B. ein fester, warmer Druck mitten in der Brust, so groß wie eine Faust">${esc(L.cur.body||"")}</textarea>
-      <div class="chips">${LOS_BODY.map(x=>`<button class="chip" data-act="los-add" data-v="${esc(x)}">+ ${esc(x)}</button>`).join("")}</div>
+      <div class="chips">${uniqCI((S.myBody||[]).concat(LOS_BODY)).map(x=>`<button class="chip" data-act="los-add" data-v="${esc(x)}">+ ${esc(x)}</button>`).join("")}</div>
       <div id="losErr" class="small" style="color:var(--danger);min-height:18px"></div>
       <button class="btn" data-act="los-body">Weiter</button>
       ${losCancel()}`;
@@ -513,11 +518,12 @@ function losAction(a,b){
   else if(a==="los-name"){
     const v=document.getElementById("losErrSrc").value.trim();
     if(!v){ losErr("Gib dem Gefühl einen Namen, ein Wort reicht."); return; }
-    L.cur.name=v; losGo("body");
+    L.cur.name=v; learnWord("myFeelings", v, LOS_NAMES); losGo("body");
   }
   else if(a==="los-body"){
     const v=document.getElementById("losErrSrc").value.trim();
     if(!v){ losErr("Beschreibe kurz, wo und wie du es spürst."); return; }
+    v.split(/[,;\n]/).map(x=>x.trim()).filter(x=>x && x.length<=20 && x.split(/\s+/).length<=2).reverse().forEach(x=>learnWord("myBody", x, LOS_BODY));
     L.cur.body=v; L.cur.stayStart=Date.now(); losGo("stay");
   }
   else if(a==="los-changed"){ L.cur.stayMs=Date.now()-L.cur.stayStart; losGo("after"); }
@@ -559,6 +565,178 @@ function losAction(a,b){
   }
 }
 
+/* ---------- Erkennen (Etappe 3) ---------- */
+const ERK_AREAS = ["Beziehungen","Partnerschaft","Körper","Kreativität","Arbeit & Tun","Gemeinschaft","Abenteuer","Anderes"];
+const ERK_BODY = ["Lähmung","Enge","Schwere","Unruhe","Druck","Leere","Kloß im Hals","Bauch zieht sich zusammen"];
+const ERK_SENT = ["Das bringt eh nichts","Dafür bin ich zu alt","Was sollen die anderen denken","Das steht mir nicht zu","Ich kann das nicht","Später, wenn …"];
+const ERK_STAGE = {1:"Der Wunsch",2:"Der Wunsch",3:"Die Bremse",4:"Die Bremse",5:"Die Bremse",6:"Die Erlaubnis",7:"Die Erlaubnis",71:"Die Erlaubnis"};
+function erkNew(){ return { begun:new Date().toISOString(), step:1, areas:[], other:"", wish:"", body:"", sentence:"", rule:"", noRule:false, oldThought:"", options:"", small:"", ask:true }; }
+function erkBar(){ return `<div class="bar"><button class="back" data-act="go" data-to="#/">‹ Kompass</button><span class="kicker">Erkennen</span><button class="pill" data-act="go" data-to="#/pause">Pause</button></div>`; }
+function erkProg(n){
+  const k = n===71?7:n;
+  return `<div style="display:flex;flex-direction:column;gap:8px"><div class="steps" aria-hidden="true" style="display:grid;grid-template-columns:repeat(7,1fr)">${[1,2,3,4,5,6,7].map(i=>`<i class="${i<=k?"on":""}"></i>`).join("")}</div>
+    <div class="small muted">${ERK_STAGE[n]} · Frage ${k} von 7</div></div>`;
+}
+function erkCancel(){
+  return ui.erkConfirmCancel
+    ? `<div class="row" style="justify-content:center"><button class="btn sm danger" data-act="erk-cancel-yes">Ja, abbrechen</button><button class="btn sm quiet" data-act="erk-cancel-no">Weitermachen</button></div>`
+    : `<button class="linkbtn" data-act="erk-cancel">Abbrechen</button>`;
+}
+function erkField(id,val,ph,rows=4){ return `<textarea class="t" id="${id}" rows="${rows}" placeholder="${esc(ph)}">${esc(val||"")}</textarea>`; }
+function erkErrBox(){ return `<div id="erkErr" class="small" style="color:var(--danger);min-height:18px"></div>`; }
+function erkNav(back=true){ return `<button class="btn" data-act="erk-next">Weiter</button>${back?`<button class="linkbtn" data-act="erk-back">‹ Vorige Frage</button>`:""}`; }
+function erkAreaText(E){ return E.areas.map(a=>a==="Anderes"&&E.other?E.other:a).join(" · "); }
+function erkOptions(E){ return E.options.split(/\n|;/).map(s=>s.replace(/^[-•*\d.)\s]+/,"").trim()).filter(Boolean); }
+
+function screenErk(){
+  const E=S.erk;
+  if(!E){
+    return `${erkBar()}<h1>Was hält dich ab?</h1>
+      <div class="muted" style="line-height:1.5">Sieben Fragen in drei Stufen: dein Wunsch, die Bremse und die Erlaubnis. Nimm dir etwa zehn Minuten. Es gibt kein Richtig oder Falsch.</div>
+      <div class="soft small">Wenn etwas zu schwer wird: Oben rechts ist immer die Pause.</div>
+      <button class="btn" data-act="erk-start">Beginnen</button>`;
+  }
+  if(!ui.erkResumeOk && (Date.now()-new Date(E.begun).getTime())>6*36e5){
+    return `${erkBar()}<h1>Angefangen am ${esc(new Date(E.begun).toLocaleDateString("de-DE"))}</h1>
+      <div class="muted">Du warst bei Frage ${E.step===71?7:Math.min(E.step,7)}.</div>
+      <button class="btn" data-act="erk-resume">Fortsetzen</button>
+      <button class="btn quiet" data-act="erk-cancel-yes">Verwerfen und neu beginnen</button>`;
+  }
+  const s=E.step;
+  if(s===1) return `${erkBar()}${erkProg(1)}
+    <h1>Wo in deinem Leben möchtest du gerade lebendiger sein?</h1>
+    <div class="muted">Du kannst mehrere wählen.</div>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+      ${ERK_AREAS.map(a=>{ const on=E.areas.includes(a); return `<button class="chip ${on?"on":""}" style="height:52px;border-radius:14px;font-size:16px" data-act="erk-area" data-v="${esc(a)}" aria-pressed="${on}">${esc(a)}</button>`; }).join("")}
+    </div>
+    ${E.areas.includes("Anderes")?`<input class="t" id="erkOther" maxlength="40" placeholder="Welcher Bereich?" value="${esc(E.other)}" aria-label="Anderer Bereich">`:""}
+    ${erkErrBox()}${erkNav(false)}${erkCancel()}`;
+  if(s===2) return `${erkBar()}${erkProg(2)}
+    <h1>Was würdest du dort tun, wenn nichts dich aufhielte?</h1>
+    <div class="muted small">${esc(erkAreaText(E))}</div>
+    ${erkField("erkIn",E.wish,"z. B. Salsa lernen, eine Ausbildung anfangen, jemanden ansprechen")}
+    ${erkErrBox()}${erkNav()}${erkCancel()}`;
+  if(s===3) return `${erkBar()}${erkProg(3)}
+    <h1>Stell dir vor, du machst es. Was passiert in dir, kurz bevor du es <em>nicht</em> tust?</h1>
+    <div class="muted" style="line-height:1.45">Spür in den Körper: Wo meldet sich etwas, und wie fühlt es sich an?</div>
+    ${erkField("erkIn",E.body,"z. B. eine Lähmung, ein Druck auf der Brust")}
+    <div class="chips">${ERK_BODY.map(x=>`<button class="chip" data-act="erk-add" data-v="${esc(x)}">+ ${esc(x)}</button>`).join("")}</div>
+    ${erkErrBox()}${erkNav()}
+    <div class="card"><div class="kicker">Ist das gerade stark?</div>
+      <div class="muted small" style="line-height:1.45">Du kannst erst loslassen und danach hier weitermachen. Deine Antworten bleiben gespeichert.</div>
+      <button class="btn sm line" style="align-self:flex-start;margin-top:6px" data-act="erk-to-los">Erst loslassen</button></div>
+    ${erkCancel()}`;
+  if(s===4) return `${erkBar()}${erkProg(4)}
+    <h1>Welcher Satz taucht dann in deinem Kopf auf?</h1>
+    ${erkField("erkIn",E.sentence,"Schreib ihn so, wie er in dir klingt",3)}
+    <div class="chips">${ERK_SENT.map(x=>`<button class="chip" data-act="erk-fill" data-v="${esc(x)}">${esc(x)}</button>`).join("")}</div>
+    ${erkErrBox()}${erkNav()}${erkCancel()}`;
+  if(s===5) return `${erkBar()}${erkProg(5)}
+    <h1>Gibt es ein „erst wenn …“?</h1>
+    <div class="muted" style="line-height:1.45">Manchmal steckt hinter der Bremse eine stille Regel. Ergänze den Satz so, wie er sich anfühlt.</div>
+    <div class="card"><label class="f" for="erkIn" style="font-weight:400;line-height:1.35">Ich darf das erst genießen oder tun, wenn …</label>
+      ${erkField("erkIn",E.rule,"… ",3)}<div class="small muted">Ein Satz reicht.</div></div>
+    ${erkErrBox()}
+    <button class="btn" data-act="erk-next">Weiter</button>
+    <button class="btn quiet" data-act="erk-norule">Da ist keine Regel</button>
+    <button class="linkbtn" data-act="erk-back">‹ Vorige Frage</button>${erkCancel()}`;
+  if(s===6){
+    const what = E.noRule ? `dieser Satz („${E.sentence}“)` : "diese Regel";
+    return `${erkBar()}${erkProg(6)}
+    <h1>Was würdest du tun, wenn ${esc(what)} nur ein alter Gedanke wäre?</h1>
+    ${!E.noRule?`<div class="soft">Ich darf das erst genießen oder tun, wenn ${esc(E.rule)}</div>`:""}
+    ${erkField("erkIn",E.oldThought,"Lass dir Zeit. Was wäre dann möglich?")}
+    ${erkErrBox()}${erkNav()}${erkCancel()}`;
+  }
+  if(s===7) return `${erkBar()}${erkProg(7)}
+    <h1>Welche Schritte wären trotzdem möglich?</h1>
+    <div class="muted" style="line-height:1.45">Auch wenn das „erst wenn“ noch nicht erfüllt ist. Schreib jeden Schritt in eine eigene Zeile.</div>
+    ${erkField("erkIn",E.options,"z. B.\nMich zum Salsa anmelden\nBei Instituten nachfragen\nEin Treffen über Meet5 organisieren",5)}
+    ${erkErrBox()}${erkNav()}${erkCancel()}`;
+  if(s===71){
+    const opts=erkOptions(E);
+    return `${erkBar()}${erkProg(71)}
+    <h1>Welcher davon ist der kleinste, den du diese Woche machen kannst?</h1>
+    <div style="display:flex;flex-direction:column;gap:8px">${opts.map(o=>{ const on=E.small===o; return `<button class="chip ${on?"on":""}" style="height:auto;min-height:48px;padding:10px 14px;border-radius:14px;text-align:left;font-size:16px;line-height:1.3" data-act="erk-small" data-v="${esc(o)}" aria-pressed="${on}">${esc(o)}</button>`; }).join("")}</div>
+    <label class="small muted" for="erkIn">Oder ein anderer, noch kleinerer Schritt:</label>
+    <input class="t" id="erkIn" maxlength="120" value="${esc(opts.includes(E.small)?"":E.small)}" autocomplete="off">
+    <label style="display:flex;gap:10px;align-items:center;min-height:44px;font-size:16px"><input type="checkbox" id="erkAsk" ${E.ask?"checked":""} style="width:22px;height:22px;accent-color:var(--accent)"> In drei Tagen sanft nachfragen, wie es war</label>
+    ${erkErrBox()}<button class="btn" data-act="erk-next">Zur Zusammenfassung</button><button class="linkbtn" data-act="erk-back">‹ Vorige Frage</button>`;
+  }
+  /* Zusammenfassung */
+  const row=(k,v,serif)=> v?`<div style="display:flex;flex-direction:column;gap:2px"><div class="kicker">${k}</div><div style="${serif?"font-family:var(--serif);font-size:18px;":""}line-height:1.4">${esc(v)}</div></div>`:"";
+  return `${erkBar()}<div class="small muted">Geschafft · ${esc(shortDate(new Date()))}</div>
+    <h1>Das hast du heute erkannt</h1>
+    <div class="card" style="gap:14px">
+      ${row("Bereich",erkAreaText(E))}
+      ${row("Wunsch",E.wish)}
+      ${row("Bremse",E.body)}
+      ${row("Der Satz dazu",E.sentence?`„${E.sentence}“`:"",true)}
+      ${E.noRule?"":row("Die stille Regel",`„Ich darf das erst genießen oder tun, wenn ${E.rule}“`,true)}
+      ${row("Wenn es nur ein alter Gedanke wäre",E.oldThought)}
+      ${row("Trotzdem möglich",erkOptions(E).join(" · "))}
+      <div style="background:var(--accent-soft);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:2px">
+        <div class="kicker">Mein kleiner Schritt diese Woche</div><div style="line-height:1.4">${esc(E.small)}</div></div>
+    </div>
+    <button class="btn" data-act="erk-save">Ins Journal</button>
+    <div class="small muted" style="text-align:center">Hat sich dabei ein starkes Gefühl gezeigt?</div>
+    <button class="btn line" data-act="erk-save-los">Ins Journal und zum Loslassen</button>
+    <button class="linkbtn" data-act="erk-back">‹ Noch etwas ändern</button>`;
+}
+
+function erkErr(msg){ const e=document.getElementById("erkErr"); if(e) e.textContent=msg; const f=document.getElementById("erkIn"); if(f) f.focus(); }
+function erkGo(step){ S.erk.step=step; save(); ui.erkConfirmCancel=false; render(); window.scrollTo(0,0); }
+function erkSaveEntry(){
+  const E=S.erk, L=[];
+  L.push("Bereich: "+erkAreaText(E));
+  if(E.wish) L.push("Wunsch: "+E.wish);
+  if(E.body) L.push("Bremse: "+E.body);
+  if(E.sentence) L.push(`Satz: „${E.sentence}“`);
+  if(!E.noRule && E.rule) L.push(`Regel: „Ich darf das erst genießen oder tun, wenn ${E.rule}“`);
+  if(E.oldThought) L.push("Wenn es nur ein alter Gedanke wäre: "+E.oldThought);
+  const o=erkOptions(E); if(o.length) L.push("Trotzdem möglich: "+o.join(" · "));
+  L.push("Kleiner Schritt: "+E.small);
+  addEntry({ area:"erkennen", title: (!E.noRule && E.rule) ? "Die stille Regel" : "Meine Bremse", text:L.join("\n"), meta:Object.assign({},E) });
+  if(E.ask) addCheckin({ area:"erkennen", text:E.small, inDays:3 });
+  S.erk=null; save();
+}
+function erkAction(a,b){
+  const E=S.erk;
+  const val=()=>{ const f=document.getElementById("erkIn"); return f?f.value.trim():""; };
+  if(a==="erk-start"){ S.erk=erkNew(); ui.erkResumeOk=true; save(); render(); }
+  else if(a==="erk-resume"){ ui.erkResumeOk=true; render(); }
+  else if(a==="erk-area"){ const v=b.dataset.v; const o=document.getElementById("erkOther"); if(o) E.other=o.value; E.areas=E.areas.includes(v)?E.areas.filter(x=>x!==v):E.areas.concat([v]); save(); render(); }
+  else if(a==="erk-add"){ const f=document.getElementById("erkIn"); f.value=(f.value.trim()?f.value.trim()+", ":"")+b.dataset.v; erkErr(""); }
+  else if(a==="erk-fill"){ const f=document.getElementById("erkIn"); f.value=b.dataset.v; erkErr(""); }
+  else if(a==="erk-small"){ const f=document.getElementById("erkIn"); if(f) f.value=""; E.small=b.dataset.v; const ck=document.getElementById("erkAsk"); if(ck) E.ask=ck.checked; save(); render(); }
+  else if(a==="erk-norule"){ E.noRule=true; E.rule=""; erkGo(6); }
+  else if(a==="erk-back"){
+    const s=E.step; const prev = s===8?71 : s===71?7 : Math.max(1,s-1);
+    erkGo(prev);
+  }
+  else if(a==="erk-to-los"){ E.body=val(); save(); location.hash="#/bereich/loslassen"; }
+  else if(a==="erk-next"){
+    const s=E.step, v=val();
+    if(s===1){ const o=document.getElementById("erkOther"); if(o) E.other=o.value.trim();
+      if(!E.areas.length) return erkErr("Wähle mindestens einen Bereich.");
+      return erkGo(2); }
+    if(s===2){ if(!v) return erkErr("Schreib kurz auf, was du tun würdest."); E.wish=v; return erkGo(3); }
+    if(s===3){ if(!v) return erkErr("Beschreibe kurz, was in dir passiert."); E.body=v; return erkGo(4); }
+    if(s===4){ if(!v) return erkErr("Schreib den Satz auf, oder tippe einen Vorschlag an."); E.sentence=v; return erkGo(5); }
+    if(s===5){ if(!v) return erkErr("Ergänze den Satz, oder tippe auf „Da ist keine Regel“."); E.rule=v.replace(/^…\s*/,""); E.noRule=false; return erkGo(6); }
+    if(s===6){ if(!v) return erkErr("Ein paar Worte reichen."); E.oldThought=v; return erkGo(7); }
+    if(s===7){ if(!v) return erkErr("Schreib mindestens einen Schritt auf."); E.options=v; const o=erkOptions(E); if(!o.includes(E.small)) E.small=o.length===1?o[0]:""; return erkGo(71); }
+    if(s===71){ const ck=document.getElementById("erkAsk"); E.ask=ck?ck.checked:true; if(v) E.small=v;
+      if(!E.small) return erkErr("Wähle einen Schritt, oder schreib einen eigenen.");
+      return erkGo(8); }
+  }
+  else if(a==="erk-save"){ erkSaveEntry(); toast("Im Journal festgehalten."); location.hash="#/journal"; }
+  else if(a==="erk-save-los"){ erkSaveEntry(); toast("Im Journal festgehalten."); location.hash="#/bereich/loslassen"; }
+  else if(a==="erk-cancel"){ ui.erkConfirmCancel=true; render(); }
+  else if(a==="erk-cancel-no"){ ui.erkConfirmCancel=false; render(); }
+  else if(a==="erk-cancel-yes"){ S.erk=null; save(); ui.erkConfirmCancel=false; ui.erkResumeOk=false; render(); }
+}
+
 /* ---------- Router ---------- */
 function render(){
   clearTimeout(breathTimer); breathTimer=null; clearInterval(losTick); losTick=null;
@@ -569,6 +747,7 @@ function render(){
   else if(h==="#/pause") html=screenPause();
   else if(h==="#/mehr") html=screenMehr();
   else if(h==="#/bereich/loslassen") html=screenLos();
+  else if(h==="#/bereich/erkennen") html=screenErk();
   else if(h.startsWith("#/bereich/")) html=screenBereich(h.slice(10));
   else html=screenStart();
   app.innerHTML = html;
@@ -576,7 +755,7 @@ function render(){
   if(h==="#/bereich/loslassen") losAfterRender();
 }
 let lastRoute = "#/";
-window.addEventListener("hashchange", ()=>{ ui.confirmDel=null; ui.confirmWipe=false; ui.losBackfill=false; ui.losConfirmDiscard=false; render(); window.scrollTo(0,0); });
+window.addEventListener("hashchange", ()=>{ ui.confirmDel=null; ui.confirmWipe=false; ui.losBackfill=false; ui.losConfirmDiscard=false; ui.erkConfirmCancel=false; render(); window.scrollTo(0,0); });
 
 function startBreath(){
   const b=document.getElementById("breath"), t=document.getElementById("breathTxt");
@@ -638,6 +817,7 @@ app.addEventListener("click", e=>{
     save(); render();
   }
   else if(a.startsWith("los-")) losAction(a,b);
+  else if(a.startsWith("erk-")) erkAction(a,b);
   else if(a==="export") doExport();
   else if(a==="snooze"){ S.backupSnooze=new Date().toISOString(); save(); render(); }
   else if(a==="import") document.getElementById("importFile").click();
@@ -646,6 +826,7 @@ app.addEventListener("click", e=>{
   else if(a==="wipe-yes"){ S=fresh(); save(); ui.confirmWipe=false; toast("Alles gelöscht."); render(); }
 });
 app.addEventListener("input", e=>{
+  if(e.target.id==="erkIn"){ const er=document.getElementById("erkErr"); if(er) er.textContent=""; }
   if(e.target.id==="losVal"){ const o=document.getElementById("losValOut"); if(o) o.textContent=fmtV(parseFloat(e.target.value)); }
   if(e.target.id==="losErrSrc"){ const er=document.getElementById("losErr"); if(er) er.textContent=""; }
   if(e.target.id==="nx"){ const er=document.getElementById("nerr"); if(er) er.textContent=""; } });

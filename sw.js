@@ -1,5 +1,5 @@
 /* Lebenskompass – Offline-Speicher. Bei jeder neuen Etappe die Nummer erhöhen. */
-const CACHE = "lebenskompass-e2";
+const CACHE = "lebenskompass-e3";
 const FILES = ["./", "./index.html", "./manifest.webmanifest", "./icon-180.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {
