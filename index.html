@@ -112,6 +112,11 @@ textarea.t{resize:vertical;min-height:120px}
 .mode .track{height:8px;border-radius:4px;background:var(--soft);overflow:hidden}.mode .track span{display:block;height:100%;background:var(--accent);border-radius:4px}
 .chip.dream{display:inline-flex;align-items:center;gap:2px;padding-right:2px}
 .chip.dream .x{background:none;border:none;font-size:18px;color:var(--muted);width:32px;height:32px}
+/* freude */
+.path{display:flex;flex-direction:column;gap:4px;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;width:100%}
+.path .k{font-size:13px;font-weight:600;color:var(--accent)}.path .t{font-family:var(--serif);font-size:21px;font-weight:600}.path .d{font-size:15px;line-height:1.4;color:var(--muted)}
+.path.hero{background:var(--accent);border-color:var(--accent)}.path.hero .k,.path.hero .t,.path.hero .d{color:var(--accent-ink)}.path.hero .d{opacity:.9}
+.f{font-family:var(--serif);font-size:19px;font-weight:600}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 </style>
 </head>
@@ -122,7 +127,7 @@ textarea.t{resize:vertical;min-height:120px}
 "use strict";
 /* ---------- Daten ---------- */
 const KEY = "lebenskompass.v1";
-const VERSION = "Etappe 4";
+const VERSION = "Etappe 5";
 const DIRS = {
   erkennen:  { name:"Erkennen",  pos:"n", rot:0,   kicker:"Oben · Beginn", text:"Was hält dich gerade ab? Welche stille Regel bremst dich?", cta:"Starten" },
   loslassen: { name:"Loslassen", pos:"e", rot:90,  kicker:"Rechts", text:"Stärke einschätzen, Gefühl benennen, im Körper beschreiben, dabeibleiben, bis es nachlässt.", cta:"Runde beginnen" },
@@ -172,6 +177,13 @@ function dayLabel(d){
 }
 function time(d){ return new Date(d).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}); }
 function daysSince(iso){ return iso ? (Date.now()-new Date(iso).getTime())/864e5 : Infinity; }
+function entryKicker(e, when){
+  const p=[areaName(e.area)], m=e.meta||{};
+  if(e.area==="freude" && m.qualities && m.qualities.length && !m.essence) p.push(m.qualities.join(", "));
+  if(e.area==="freude" && m.strength && !m.tried) p.push(m.strength+" von 5");
+  if(m.love && m.love.length) p.push("♡ "+m.love.map(k=>({partnerschaft:"Partnerschaft",freundschaft:"Freundschaft",familie:"Familie",welt:"Zuwendung zur Welt",selbst:"Selbstliebe"}[k]||k)).join(", "));
+  p.push(when); return p.join(" · ");
+}
 function areaName(a){ return DIRS[a] ? DIRS[a].name : "Notiz"; }
 
 let toastT=null;
@@ -245,7 +257,7 @@ function screenStart(){
   <div style="display:flex;flex-direction:column;gap:8px">
     <div class="small muted" style="font-weight:600">Eine Erinnerung für dich</div>
     ${m ? `<div class="entry">${icon(m.area)}<div class="body">
-        <div class="kicker">${esc(areaName(m.area))} · ${esc(shortDate(m.date))}</div>
+        <div class="kicker">${esc(entryKicker(m, shortDate(m.date)))}</div>
         ${m.title?`<div class="title">${esc(m.title)}</div>`:""}
         <div class="text">${esc(m.text)}</div></div></div>`
       : `<div class="soft">Hier erscheint bald eine Erinnerung aus deinem Journal.</div>`}
@@ -255,16 +267,16 @@ function screenStart(){
 
 function screenJournal(){
   const f = ui.filter;
-  const list = S.entries.filter(e=>f==="alle" || e.area===f).sort((a,b)=>b.date.localeCompare(a.date));
+  const list = S.entries.filter(e=>f==="alle" || (f==="liebe" ? !!(e.meta&&e.meta.love&&e.meta.love.length) : e.area===f)).sort((a,b)=>b.date.localeCompare(a.date));
   const days=[]; list.forEach(e=>{ const k=dayKey(e.date); let d=days.find(x=>x.k===k); if(!d){ d={k,label:dayLabel(e.date),items:[]}; days.push(d);} d.items.push(e); });
-  const filters=[["alle","Alle"],...ORDER.map(k=>[k,DIRS[k].name]),["notiz","Notizen"]];
+  const filters=[["alle","Alle"],...ORDER.map(k=>[k,DIRS[k].name]),["notiz","Notizen"],["liebe","♡ Liebe"]];
   return `
   <div class="bar"><button class="back" data-act="go" data-to="#/">‹ Kompass</button><span class="kicker">Mitte</span><button class="pill" data-act="go" data-to="#/pause">Pause</button></div>
   <div class="bar"><h1>Dein Journal</h1><button class="btn sm line" data-act="go" data-to="#/notiz">+ Notiz</button></div>
   <div class="chips">${filters.map(([k,l])=>`<button class="chip ${f===k?"on":""}" data-act="filter" data-k="${k}" aria-pressed="${f===k}">${l}</button>`).join("")}</div>
   ${days.length ? days.map(d=>`<section class="day"><div class="label">${esc(d.label)}</div>
       ${d.items.map(e=>`<article class="entry">${icon(e.area)}<div class="body">
-        <div class="kicker">${esc(areaName(e.area))} · ${esc(time(e.date))}</div>
+        <div class="kicker">${esc(entryKicker(e, time(e.date)))}</div>
         ${e.title?`<div class="title">${esc(e.title)}</div>`:""}
         ${e.text?`<div class="text">${esc(e.text)}</div>`:""}
         <button class="del ${ui.confirmDel===e.id?"confirm":""}" data-act="del" data-id="${e.id}">${ui.confirmDel===e.id?"Wirklich löschen?":"Löschen"}</button>
@@ -995,6 +1007,202 @@ function intAction(a,b){
   }
 }
 
+/* ---------- Freude (Etappe 5) ---------- */
+const QUALITIES = ["Freiheit","Schaffen","Staunen","Verbundenheit","Mut","Geborgenheit","Neugier","Bewegung","Stille","Ordnung","Geben","Sinne","Leichtigkeit","Können","Entdecken","Dankbarkeit","Nähe","Ausgelassenheit"];
+const LOVE = [["partnerschaft","Partnerschaft","Eros"],["freundschaft","Freundschaft","Philia"],["familie","Familie","Storge"],["welt","Zuwendung zur Welt","Agape"],["selbst","Selbstliebe","Philautia"]];
+const LIBRARY = [
+  ["l01","Barfuß durchs nasse Gras gehen",["Sinne","Freiheit"]],["l02","Etwas mit den Händen bauen, bis es steht",["Schaffen","Können"]],
+  ["l03","Im Regen spazieren gehen, ohne Schirm",["Freiheit","Sinne"]],["l04","Auf eine Anhöhe steigen und über alles schauen",["Freiheit","Staunen"]],
+  ["l05","Lieblingsmusik laut hören und sich dazu bewegen",["Ausgelassenheit","Bewegung"]],["l06","Ein Feuer machen und hineinschauen",["Stille","Staunen"]],
+  ["l07","Jemandem etwas schenken, ohne Anlass",["Geben","Verbundenheit"]],["l08","Eine Frucht essen und wirklich schmecken",["Sinne","Dankbarkeit"]],
+  ["l09","Etwas reparieren, das lange kaputt war",["Können","Ordnung"]],["l10","Ins Wasser springen",["Mut","Sinne"]],
+  ["l11","Mit einem Kind spielen und es die Regeln erfinden lassen",["Leichtigkeit","Nähe"]],["l12","Eine Stunde ohne Ziel durch eine fremde Straße gehen",["Entdecken","Neugier"]],
+  ["l13","Früh draußen sein, bevor die anderen wach sind",["Stille","Freiheit"]],["l14","Einen Brief mit der Hand schreiben",["Verbundenheit","Geben"]],
+  ["l15","Etwas aufräumen, bis es richtig gut aussieht",["Ordnung","Können"]],["l16","Singen, wo einen niemand hört",["Freiheit","Ausgelassenheit"]],
+  ["l17","Nachts die Sterne anschauen",["Staunen","Stille"]],["l18","Kochen und jemanden damit überraschen",["Geben","Schaffen"]],
+  ["l19","Schaukeln",["Bewegung","Leichtigkeit"]],["l20","Zeichnen oder malen, ganz ohne Anspruch",["Schaffen","Leichtigkeit"]],
+  ["l21","Alte Fotos anschauen",["Dankbarkeit","Verbundenheit"]],["l22","Ein Tier streicheln",["Nähe","Geborgenheit"]],
+  ["l23","Etwas zum ersten Mal ausprobieren",["Neugier","Mut"]],["l24","Mit jemandem lachen, bis der Bauch wehtut",["Ausgelassenheit","Nähe"]],
+  ["l25","Auf einer Bank sitzen und Menschen zuschauen",["Stille","Neugier"]],["l26","Ein Gespräch führen, in dem man die Zeit vergisst",["Verbundenheit","Nähe"]],
+  ["l27","Holz sägen, hobeln oder schnitzen",["Schaffen","Sinne"]],["l28","Sich hinlegen und den Wolken nachschauen",["Leichtigkeit","Staunen"]]
+];
+function frS(){ if(!S.fr) S.fr={ essences:[], lib:{}, own:[], pending:[], ess:null }; return S.fr; }
+function loveName(k){ const l=LOVE.find(x=>x[0]===k); return l?l[1]:k; }
+function frBar(back){ return `<div class="bar"><button class="back" data-act="${back?"fr-home":"go"}" data-to="#/">‹ ${back?"Freude":"Kompass"}</button><span class="kicker">Freude</span><button class="pill" data-act="go" data-to="#/pause">Pause</button></div>`; }
+function frChips(list,sel,act,max){ return `<div class="chips">${list.map(q=>{ const on=sel.includes(q); return `<button class="chip ${on?"on":""}" data-act="${act}" data-v="${esc(q)}" aria-pressed="${on}">${esc(q)}</button>`; }).join("")}</div>`; }
+function allForms(){ const F=frS(); return LIBRARY.map(([id,form,q])=>({id,form,q,own:false})).concat(F.own.map(o=>({id:o.id,form:o.form,q:o.q||[],own:true}))); }
+
+function screenFr(){
+  const F=frS(), v=ui.frView||"main";
+  if(v==="moment") return screenFrMoment();
+  if(v==="essenz") return screenFrEssenz();
+  if(v==="lib") return screenFrLib();
+  if(v==="try") return screenFrTry();
+  const counts={}; S.entries.forEach(e=>{ (e.meta&&e.meta.love||[]).forEach(k=>counts[k]=(counts[k]||0)+1); });
+  const tot=Object.values(counts).reduce((a,b)=>a+b,0), mx=Math.max(1,...Object.values(counts));
+  const pend=F.pending[0];
+  return `${frBar()}
+    <h1>Was ist gerade dran?</h1>
+    <div class="muted" style="line-height:1.45;margin-top:-8px">Freude festhalten, ihre Essenz finden oder Neues ausprobieren.</div>
+    ${pend?`<div class="card"><div class="kicker">Du probierst gerade aus</div><div style="line-height:1.45">${esc(pend.form)}</div>
+      <div class="row" style="margin-top:6px"><button class="btn sm" data-act="fr-try-done" data-v="${pend.id}">Wie war's?</button><button class="btn sm quiet" data-act="fr-try-drop" data-v="${pend.id}">Verwerfen</button></div></div>`:""}
+    <button class="path hero" data-act="fr-view" data-v="moment"><span class="k">Schnell · 1 Minute</span><span class="t">Moment festhalten</span><span class="d">Gerade ist etwas Schönes passiert? Halte es fest, bevor es verblasst.</span></button>
+    <button class="path" data-act="fr-view" data-v="essenz"><span class="k">Für ruhige Zeiten · ca. 15 Minuten</span><span class="t">${F.ess?"Essenz finden (fortsetzen)":"Essenz finden"}</span><span class="d">Eine Reise zu dem, was dir als Kind wahre Freude gemacht hat, und was darunter liegt.</span></button>
+    <button class="path" data-act="fr-view" data-v="lib"><span class="k">Von anderen lernen</span><span class="t">Freude ausprobieren</span><span class="d">${allForms().length} Freude-Formen anderer Menschen. Probier eine aus und schau, was sie mit dir macht.</span></button>
+    <div class="card"><div class="kicker">Liebe in deinem Leben</div>
+      ${tot ? LOVE.map(([k,l,g])=>`<div class="mode" style="grid-template-columns:1fr 90px 22px"><span>${l} <span class="muted small">${g}</span></span><span class="track"><span style="width:${Math.round((counts[k]||0)/mx*100)}%"></span></span><span class="small" style="text-align:right">${counts[k]||0}</span></div>`).join("")
+        : `<div class="muted small" style="line-height:1.45">Wenn du einen Moment festhältst, kannst du angeben, ob Liebe im Spiel war. Hier siehst du dann, in wie vielen Formen sie schon in deinem Leben ist.</div>`}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="small muted" style="font-weight:600">Deine Essenzen</div>
+      ${F.essences.length ? F.essences.map(e=>`<div class="card" style="gap:4px"><h2 style="font-size:19px">${esc(e.name)}</h2>
+          <div class="small muted">${esc(e.qualities.join(" · "))}</div>
+          ${e.bridges.length?`<div class="small" style="line-height:1.45">Heute: ${esc(e.bridges.join(" · "))}</div>`:""}</div>`).join("")
+        : `<div class="soft small">Noch keine gefunden. Die erste Reise zeigt dir deine erste Essenz.</div>`}
+    </div>`;
+}
+
+function screenFrMoment(){
+  const m=ui.frM||(ui.frM={q:[],lv:null,love:[]});
+  return `${frBar(1)}<h1>Moment festhalten</h1>
+    <label class="f" for="frWas">Was war schön?</label>
+    <textarea class="t" id="frWas" rows="3" placeholder="z. B. Den Löwenzahn vor der Tür genau angeschaut">${esc(m.was||"")}</textarea>
+    <div id="frErr" class="small" style="color:var(--danger);min-height:0"></div>
+    <div class="f">Wie hat es sich angefühlt?</div>
+    ${frChips(QUALITIES,m.q,"fr-m-q")}
+    <div class="f">Wie stark?</div>
+    <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px">${[1,2,3,4,5].map(n=>`<button class="chip ${m.lv===n?"on":""}" style="height:44px" data-act="fr-m-lv" data-v="${n}" aria-pressed="${m.lv===n}" aria-label="Stärke ${n} von 5">${n}</button>`).join("")}</div>
+    <div class="f">War dabei Liebe im Spiel? <span class="muted small" style="font-family:var(--sans);font-weight:400">(optional)</span></div>
+    ${frChips(LOVE.map(l=>l[1]),m.love.map(loveName),"fr-m-love")}
+    <label class="f" for="frTell">Wem möchtest du davon erzählen?</label>
+    <input class="t" id="frTell" maxlength="60" autocomplete="off" placeholder="Einem Menschen oder einer Gruppe" value="${esc(m.tell||"")}">
+    <button class="btn" data-act="fr-m-save" style="margin-top:6px">Ins Journal</button>`;
+}
+function frKeepMoment(){ const m=ui.frM; const a=document.getElementById("frWas"), b=document.getElementById("frTell"); if(a) m.was=a.value; if(b) m.tell=b.value; }
+
+function screenFrEssenz(){
+  const F=frS(); if(!F.ess) F.ess={ step:0, form:"", scene:"", qualities:[], name:"", bridges:["","",""] };
+  const d=F.ess, dots=`<div class="steps" aria-hidden="true" style="display:grid;grid-template-columns:repeat(6,1fr)">${[0,1,2,3,4,5].map(i=>`<i class="${i<=d.step?"on":""}"></i>`).join("")}</div>`;
+  let body="";
+  if(d.step===0) body=`<h1>Zurück zu deiner Freude</h1>
+    <div class="muted" style="line-height:1.5">Wir gehen in sechs kleinen Schritten zu einem Moment, in dem du ganz du selbst warst. Oft liegt so einer in der Kindheit.</div>
+    <div class="soft small">Wenn deine Kindheit schwer war, nimm einfach eine andere Zeit deines Lebens. Und wenn beim Zurückschauen etwas Schweres hochkommt, hör auf und sprich mit jemandem, dem du vertraust. Oben rechts ist immer die Pause.</div>`;
+  if(d.step===1) body=`<div class="kicker">Die Form</div><h1>Was hast du getan, wenn dich niemand gerufen hat?</h1>
+    <textarea class="t" id="frIn" rows="4" placeholder="z. B. Lego bauen, Höhlen im Wald bauen, am Wasser sitzen …">${esc(d.form)}</textarea>`;
+  if(d.step===2) body=`<div class="kicker">Der Moment</div><h1>Wie war das ganz konkret?</h1>
+    <div class="muted">Was hast du gesehen, gehört, gerochen, gespürt? Je genauer, desto lebendiger kommt es zurück.</div>
+    <textarea class="t" id="frIn" rows="5">${esc(d.scene)}</textarea>`;
+  if(d.step===3) body=`<div class="kicker">Die Qualität</div><h1>Was war das Schöne daran?</h1>
+    <div class="muted small">Nicht was du getan hast, sondern wonach es sich angefühlt hat. Wähle eins oder zwei.</div>
+    ${frChips(QUALITIES.concat(d.qualities.filter(q=>!QUALITIES.includes(q))),d.qualities,"fr-e-q")}
+    <div class="row" style="flex-wrap:nowrap"><input class="t" id="frQfree" maxlength="30" placeholder="oder ein eigenes Wort" style="height:44px"><button class="btn sm line" data-act="fr-e-qadd">Dazu</button></div>`;
+  if(d.step===4) body=`<div class="kicker">Der Name</div><h1>Gib dieser Freude einen Namen</h1>
+    <input class="t" id="frIn" maxlength="50" placeholder="${esc(d.qualities[0]||"z. B. Weite über allem")}" value="${esc(d.name)}">
+    <div class="muted small">So erkennst du sie später wieder und kannst anderen davon erzählen.</div>`;
+  if(d.step===5) body=`<div class="kicker">Heute</div><h1>Woran könntest du das heute wieder erleben?</h1>
+    <div class="muted small">Bis zu drei Ideen. Kleine reichen.</div>
+    ${[0,1,2].map(i=>`<input class="t fr-bridge" data-i="${i}" maxlength="80" placeholder="Idee ${i+1}" value="${esc(d.bridges[i]||"")}" aria-label="Idee ${i+1}">`).join("")}
+    <div class="card" style="gap:4px"><h2 style="font-size:19px">${esc(d.name||d.qualities[0]||"Deine Essenz")}</h2><div class="small muted">${esc(d.qualities.join(" · "))}</div>${d.form?`<div class="small muted">${esc(d.form)}</div>`:""}</div>`;
+  return `${frBar(1)}${dots}${body}<div id="frErr" class="small" style="color:var(--danger);min-height:18px"></div>
+    ${d.step<5?`<button class="btn" data-act="fr-e-next">${d.step===0?"Beginnen":"Weiter"}</button>`:`<button class="btn" data-act="fr-e-save">Essenz speichern</button>`}
+    <button class="linkbtn" data-act="fr-e-back">${d.step===0?"Abbrechen":"‹ Zurück"}</button>`;
+}
+
+function screenFrLib(){
+  const F=frS(), qf=ui.frQ||"alle";
+  const forms=allForms().filter(f=>qf==="alle"||f.q.includes(qf));
+  const stat=id=>{ const r=F.lib[id]; if(!r) return ""; return `<span class="small" style="color:var(--accent);font-weight:600">${r.fit==="ja"?"Passt zu mir":r.fit==="vielleicht"?"Vielleicht":"Eher nicht"} · ${r.lv}/5</span>`; };
+  return `${frBar(1)}<h1>Freude ausprobieren</h1>
+    <div class="chips">${["alle"].concat(QUALITIES).map(q=>`<button class="chip ${qf===q?"on":""}" data-act="fr-lib-q" data-v="${esc(q)}" aria-pressed="${qf===q}">${q==="alle"?"Alle":esc(q)}</button>`).join("")}</div>
+    <div style="display:flex;flex-direction:column;gap:10px">${forms.map(f=>`<div class="card" style="gap:4px">
+      <div style="font-size:16px;font-weight:600;line-height:1.35">${esc(f.form)}</div>
+      <div class="small muted">${esc(f.q.join(" · "))}${f.own?" · eigene":""}</div>${stat(f.id)}
+      <button class="btn sm line" style="align-self:flex-start;margin-top:4px" data-act="fr-try" data-v="${f.id}">Ausprobieren</button></div>`).join("")}</div>
+    <div class="card"><div class="kicker">Eigene Freude-Form hinzufügen</div>
+      <input class="t" id="frOwn" maxlength="80" placeholder="z. B. Mit dem Motorrad an der Küste entlang">
+      <button class="btn sm" style="align-self:flex-start;margin-top:6px" data-act="fr-own-add">Hinzufügen</button></div>`;
+}
+
+function screenFrTry(){
+  const F=frS(), p=F.pending.find(x=>x.id===ui.frTry); if(!p){ ui.frView="main"; return screenFr(); }
+  const t=ui.frT||(ui.frT={lv:null,fit:null,love:[]});
+  return `${frBar(1)}<div class="kicker">Ausprobiert</div><h1>Wie war's?</h1>
+    <div class="soft">${esc(p.form)}</div>
+    <div class="f">Wie viel Freude hat es ausgelöst?</div>
+    <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px">${[1,2,3,4,5].map(n=>`<button class="chip ${t.lv===n?"on":""}" style="height:44px" data-act="fr-t-lv" data-v="${n}" aria-pressed="${t.lv===n}">${n}</button>`).join("")}</div>
+    <div class="f">Passt diese Form zu dir?</div>
+    <div class="row" style="flex-wrap:nowrap">${[["ja","Ja"],["vielleicht","Vielleicht"],["nein","Eher nicht"]].map(([k,l])=>`<button class="chip ${t.fit===k?"on":""}" style="height:48px;flex:1" data-act="fr-t-fit" data-v="${k}" aria-pressed="${t.fit===k}">${l}</button>`).join("")}</div>
+    <div class="f">War dabei Liebe im Spiel? <span class="muted small" style="font-family:var(--sans);font-weight:400">(optional)</span></div>
+    ${frChips(LOVE.map(l=>l[1]),t.love.map(loveName),"fr-t-love")}
+    <label class="f" for="frNote">Ein Satz dazu <span class="muted small" style="font-family:var(--sans);font-weight:400">(optional)</span></label>
+    <textarea class="t" id="frNote" rows="2">${esc(t.note||"")}</textarea>
+    <div id="frErr" class="small" style="color:var(--danger);min-height:18px"></div>
+    <button class="btn" data-act="fr-t-save">Ins Journal</button>`;
+}
+
+function frErr(m){ const e=document.getElementById("frErr"); if(e) e.textContent=m; }
+function frAction(a,b){
+  const F=frS(), v=b.dataset.v;
+  const loveKey=name=>(LOVE.find(l=>l[1]===name)||[])[0];
+  const toggle=(arr,x,max)=>arr.includes(x)?arr.filter(y=>y!==x):(max&&arr.length>=max?arr.slice(1).concat([x]):arr.concat([x]));
+  if(a==="fr-home"){ ui.frView="main"; render(); window.scrollTo(0,0); }
+  else if(a==="fr-view"){ ui.frView=v; if(v==="moment") ui.frM={q:[],lv:null,love:[]}; render(); window.scrollTo(0,0); }
+  else if(a==="fr-m-q"){ frKeepMoment(); ui.frM.q=toggle(ui.frM.q,v,2); render(); }
+  else if(a==="fr-m-lv"){ frKeepMoment(); ui.frM.lv=+v; render(); }
+  else if(a==="fr-m-love"){ frKeepMoment(); ui.frM.love=toggle(ui.frM.love,loveKey(v)); render(); }
+  else if(a==="fr-m-save"){
+    frKeepMoment(); const m=ui.frM;
+    if(!(m.was||"").trim()){ frErr("Schreib kurz auf, was schön war."); document.getElementById("frWas").focus(); return; }
+    const L=[m.was.trim()]; if(m.tell&&m.tell.trim()) L.push("Erzählen möchte ich es: "+m.tell.trim());
+    addEntry({ area:"freude", title:"", text:L.join("\n"), meta:{ qualities:m.q, strength:m.lv, love:m.love, tell:(m.tell||"").trim() } });
+    ui.frM=null; ui.frView="main"; toast("Festgehalten. Schön, dass es diesen Moment gab."); location.hash="#/journal";
+  }
+  else if(a==="fr-e-q"){ F.ess.qualities=toggle(F.ess.qualities,v,2); save(); render(); }
+  else if(a==="fr-e-qadd"){ const w=document.getElementById("frQfree").value.trim(); if(w){ F.ess.qualities=toggle(F.ess.qualities.filter(x=>x!==w),w,2); save(); } render(); }
+  else if(a==="fr-e-back"){ const d=F.ess; if(!d||d.step===0){ F.ess=null; save(); ui.frView="main"; } else { d.step--; save(); } render(); window.scrollTo(0,0); }
+  else if(a==="fr-e-next"){
+    const d=F.ess, inp=document.getElementById("frIn"), val=inp?inp.value.trim():"";
+    if(d.step===1){ if(!val) return frErr("Schreib kurz auf, was du getan hast."); d.form=val; }
+    if(d.step===2){ d.scene=val; }
+    if(d.step===3){ if(!d.qualities.length) return frErr("Wähle mindestens eine Qualität."); }
+    if(d.step===4){ d.name=val||d.qualities[0]; }
+    d.step++; save(); render(); window.scrollTo(0,0);
+  }
+  else if(a==="fr-e-save"){
+    const d=F.ess; d.bridges=[...document.querySelectorAll(".fr-bridge")].map(x=>x.value.trim()).filter(Boolean);
+    const e={ id:uid(), name:d.name||d.qualities[0]||"Meine Essenz", qualities:d.qualities, form:d.form, scene:d.scene, bridges:d.bridges, date:new Date().toISOString() };
+    F.essences.push(e);
+    const L=["Form: "+e.form]; if(e.scene) L.push("Moment: "+e.scene); L.push("Qualität: "+e.qualities.join(", ")); if(e.bridges.length) L.push("Heute: "+e.bridges.join(" · "));
+    addEntry({ area:"freude", title:"Essenz: "+e.name, text:L.join("\n"), meta:{ essence:e.id, qualities:e.qualities } });
+    F.ess=null; ui.frView="main"; save(); toast("Deine Essenz ist gespeichert."); render(); window.scrollTo(0,0);
+  }
+  else if(a==="fr-lib-q"){ ui.frQ=v; render(); }
+  else if(a==="fr-own-add"){ const f=document.getElementById("frOwn").value.trim(); if(f){ F.own.push({ id:"o"+uid(), form:f, q:[] }); save(); toast("Hinzugefügt."); } render(); }
+  else if(a==="fr-try"){
+    const f=allForms().find(x=>x.id===v); if(!f) return;
+    addCheckin({ area:"freude", text:"Ausprobieren: "+f.form, inDays:2, link:"#/bereich/freude" });
+    F.pending.unshift({ id:uid(), fid:f.id, form:f.form, ci:S.checkins[S.checkins.length-1].id });
+    ui.frView="main"; save(); toast("Viel Freude beim Ausprobieren!"); render(); window.scrollTo(0,0);
+  }
+  else if(a==="fr-try-drop"){ const p=F.pending.find(x=>x.id===v); if(p){ const c=S.checkins.find(c=>c.id===p.ci); if(c) c.done=true; } F.pending=F.pending.filter(x=>x.id!==v); save(); render(); }
+  else if(a==="fr-try-done"){ ui.frTry=v; ui.frT={lv:null,fit:null,love:[]}; ui.frView="try"; render(); window.scrollTo(0,0); }
+  else if(a==="fr-t-lv"||a==="fr-t-fit"||a==="fr-t-love"){
+    const n=document.getElementById("frNote"); if(n) ui.frT.note=n.value;
+    if(a==="fr-t-lv") ui.frT.lv=+v; if(a==="fr-t-fit") ui.frT.fit=v; if(a==="fr-t-love") ui.frT.love=toggle(ui.frT.love,loveKey(v));
+    render();
+  }
+  else if(a==="fr-t-save"){
+    const t=ui.frT, p=F.pending.find(x=>x.id===ui.frTry); if(!p) return;
+    t.note=(document.getElementById("frNote").value||"").trim();
+    if(!t.lv||!t.fit) return frErr("Tippe noch an, wie viel Freude es war und ob es zu dir passt.");
+    F.lib[p.fid]={ lv:t.lv, fit:t.fit, date:new Date().toISOString() };
+    const L=["Freude: "+t.lv+" von 5 · Passt zu mir: "+({ja:"Ja",vielleicht:"Vielleicht",nein:"Eher nicht"}[t.fit])]; if(t.note) L.push(t.note);
+    addEntry({ area:"freude", title:"Ausprobiert: "+p.form, text:L.join("\n"), meta:{ tried:p.fid, strength:t.lv, love:t.love } });
+    const c=S.checkins.find(c=>c.id===p.ci); if(c) c.done=true;
+    F.pending=F.pending.filter(x=>x.id!==p.id); ui.frView="main"; save(); toast("Im Journal festgehalten."); render(); window.scrollTo(0,0);
+  }
+}
+
 /* ---------- Router ---------- */
 function render(){
   clearTimeout(breathTimer); breathTimer=null; clearInterval(losTick); losTick=null;
@@ -1007,6 +1215,7 @@ function render(){
   else if(h==="#/bereich/loslassen") html=screenLos();
   else if(h==="#/bereich/erkennen") html=screenErk();
   else if(h==="#/bereich/interesse") html=screenInt();
+  else if(h==="#/bereich/freude") html=screenFr();
   else if(h.startsWith("#/bereich/")) html=screenBereich(h.slice(10));
   else html=screenStart();
   app.innerHTML = html;
@@ -1014,7 +1223,7 @@ function render(){
   if(h==="#/bereich/loslassen") losAfterRender();
 }
 let lastRoute = "#/";
-window.addEventListener("hashchange", ()=>{ ui.confirmDel=null; ui.confirmWipe=false; ui.losBackfill=false; ui.losConfirmDiscard=false; ui.erkConfirmCancel=false; ui.intView="map"; render(); window.scrollTo(0,0); });
+window.addEventListener("hashchange", ()=>{ ui.confirmDel=null; ui.confirmWipe=false; ui.losBackfill=false; ui.losConfirmDiscard=false; ui.erkConfirmCancel=false; ui.intView="map"; ui.frView="main"; render(); window.scrollTo(0,0); });
 
 function startBreath(){
   const b=document.getElementById("breath"), t=document.getElementById("breathTxt");
@@ -1079,6 +1288,7 @@ app.addEventListener("click", e=>{
   else if(a.startsWith("los-")) losAction(a,b);
   else if(a.startsWith("erk-")) erkAction(a,b);
   else if(a.startsWith("int-")) intAction(a,b);
+  else if(a.startsWith("fr-")) frAction(a,b);
   else if(a==="export") doExport();
   else if(a==="snooze"){ S.backupSnooze=new Date().toISOString(); save(); render(); }
   else if(a==="import") document.getElementById("importFile").click();
