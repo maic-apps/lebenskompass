@@ -128,7 +128,7 @@ button.entry{font:inherit;color:inherit}
 "use strict";
 /* ---------- Daten ---------- */
 const KEY = "lebenskompass.v1";
-const VERSION = "Etappe 7";
+const VERSION = "Etappe 8";
 const DIRS = {
   erkennen:  { name:"Erkennen",  pos:"n", rot:0,   kicker:"Oben · Beginn", text:"Was hält dich ab? Oder: Was Altes kommt hoch und will eingeordnet werden?", cta:"Starten" },
   loslassen: { name:"Loslassen", pos:"e", rot:90,  kicker:"Rechts", text:"Stärke einschätzen, Gefühl benennen, im Körper beschreiben, dabeibleiben, bis es nachlässt.", cta:"Runde beginnen" },
@@ -775,19 +775,38 @@ function erkAction(a,b){
 
 /* ---------- Interesse: Inhalte ---------- */
 const ISLES = [
-  { id:"wasser",   name:"Wasser",              cx:70,  cy:70,  rx:44, ry:27, k:[1,.85,1.1,.9,1,1.15,.8,1] },
-  { id:"motorrad", name:"Motorrad & Technik",  cx:190, cy:52,  rx:38, ry:23, k:[.9,1.1,.95,1.05,.85,1,1.1,.9] },
-  { id:"ferne",    name:"Ferne Länder",        cx:298, cy:80,  rx:40, ry:26, k:[1.1,.9,1,1.15,.85,1,.95,1.05] },
-  { id:"wald",     name:"Wald & Natur",        cx:105, cy:160, rx:38, ry:23, k:[1,1.1,.85,1,1.1,.9,1,.95] },
-  { id:"gemeinschaft", name:"Gemeinschaft",    cx:240, cy:168, rx:46, ry:27, k:[.95,1,1.1,.9,1,1.1,.85,1] },
-  { id:"bauen",    name:"Gestalten & Bauen",        cx:58,  cy:250, rx:36, ry:24, k:[1.05,.9,1,1.1,.95,.85,1.1,1] },
-  { id:"sport",    name:"Sport & Kampfkunst",  cx:188, cy:252, rx:34, ry:22, k:[1,.9,1.1,1,.85,1.05,1,1.1] },
-  { id:"musik",    name:"Musik & Tanz",        cx:292, cy:262, rx:36, ry:23, k:[.9,1.05,1,.9,1.1,1,.95,1.05] },
-  { id:"spiel",    name:"Spiel & Geschichten", cx:68,  cy:340, rx:34, ry:23, k:[1,1.1,.9,1,1.05,.9,1.1,.95] },
-  { id:"ki",       name:"KI-Labor",            cx:185, cy:345, rx:36, ry:24, k:[1.05,.9,1.1,.95,1,.9,1.05,1] },
-  { id:"nebel",    name:"Unbekanntes Land",    cx:298, cy:342, rx:36, ry:24, k:[1.1,.95,1,.85,1,1.1,.9,1] }
+  { id:"wasser",   name:"Wasser",              k:[1,.85,1.1,.9,1,1.15,.8,1] },
+  { id:"motorrad", name:"Motorrad & Technik",  k:[.9,1.1,.95,1.05,.85,1,1.1,.9] },
+  { id:"ferne",    name:"Ferne Länder",        k:[1.1,.9,1,1.15,.85,1,.95,1.05] },
+  { id:"wald",     name:"Wald & Natur",        k:[1,1.1,.85,1,1.1,.9,1,.95] },
+  { id:"gemeinschaft", name:"Gemeinschaft",    k:[.95,1,1.1,.9,1,1.1,.85,1] },
+  { id:"bauen",    name:"Gestalten & Bauen",   k:[1.05,.9,1,1.1,.95,.85,1.1,1] },
+  { id:"sport",    name:"Sport & Kampfkunst",  k:[1,.9,1.1,1,.85,1.05,1,1.1] },
+  { id:"musik",    name:"Musik & Tanz",        k:[.9,1.05,1,.9,1.1,1,.95,1.05] },
+  { id:"spiel",    name:"Spiel & Geschichten", k:[1,1.1,.9,1,1.05,.9,1.1,.95] },
+  { id:"ki",       name:"KI-Labor",            k:[1.05,.9,1.1,.95,1,.9,1.05,1] },
+  { id:"blumen",   name:"Blumen & Garten",     k:[1,1.1,.9,1.05,.95,1.1,.9,1] },
+  { id:"herz",     name:"Herzenssache",        k:[1.1,1,.9,1,1.1,.95,1,.9] },
+  { id:"familie",  name:"Familie & Enkel",     k:[.95,1.05,1.1,.9,1,1,1.1,.9] },
+  { id:"nachbarn", name:"Nachbarschaft",       k:[1,.9,1.05,1.1,.9,1,.95,1.1] },
+  { id:"royals",   name:"Royals & Schlösser",  k:[1.1,.95,1,.9,1.05,1.1,.9,1] },
+  { id:"schoen",   name:"Schönheit & Pflege",  k:[.9,1,1.1,1,.9,1.05,1.1,.95] },
+  { id:"mode",     name:"Mode & Stil",         k:[1,1.05,.9,1.1,1,.9,1.05,1] },
+  { id:"kochen",   name:"Kochen & Backen",     k:[1.05,1,.95,1.1,.9,1,1,1.1] },
+  { id:"erinnern", name:"Erinnerungen",        k:[.95,1.1,1,.9,1.05,.95,1.1,1] },
+  { id:"nebel",    name:"Unbekanntes Land",    k:[1.1,.95,1,.85,1,1.1,.9,1] }
 ];
-const BRIDGES = [["wasser","motorrad"],["wasser","ferne"],["motorrad","ferne"],["wasser","wald"],["gemeinschaft","sport"],["gemeinschaft","musik"],["spiel","gemeinschaft"],["bauen","wald"],["bauen","gemeinschaft"],["motorrad","gemeinschaft"],["musik","nebel"],["spiel","nebel"],["musik","ki"],["spiel","ki"],["ki","nebel"]];
+/* Feste Plätze auf der Karte. Die gewählten Inseln belegen sie der Reihe nach, das Unbekannte Land kommt danach. */
+const SLOTS = [[70,70,44,27],[190,52,38,23],[298,80,40,26],[105,160,38,23],[240,168,46,27],[58,250,36,24],[188,252,34,22],[292,262,36,23],[68,340,34,23],[185,345,36,24],[298,342,36,24]];
+const SLOT_ROWS = [[0,1,2],[3,4],[5,6,7],[8,9,10]];
+const ISLE_DEFAULT = ["wasser","motorrad","ferne","wald","gemeinschaft","bauen","sport","musik","spiel","ki"];
+const ISLE_MAX = 10, ISLE_MIN = 3;
+function activeIsles(){
+  const I=intS(); const ids=(I.isles||ISLE_DEFAULT).filter(id=>id!=="nebel" && ISLES.some(x=>x.id===id)).slice(0,ISLE_MAX);
+  ids.push("nebel");
+  return ids.map((id,n)=>{ const d=ISLES.find(x=>x.id===id), [cx,cy,rx,ry]=SLOTS[n]; return Object.assign({},d,{cx,cy,rx,ry,slot:n}); });
+}
+const BRIDGES = [["blumen","wald"],["blumen","erinnern"],["familie","kochen"],["familie","erinnern"],["herz","nachbarn"],["herz","familie"],["schoen","mode"],["royals","mode"],["nachbarn","gemeinschaft"],["kochen","herz"],["royals","erinnern"],["blumen","bauen"],["wasser","motorrad"],["wasser","ferne"],["motorrad","ferne"],["wasser","wald"],["gemeinschaft","sport"],["gemeinschaft","musik"],["spiel","gemeinschaft"],["bauen","wald"],["bauen","gemeinschaft"],["motorrad","gemeinschaft"],["musik","nebel"],["spiel","nebel"],["musik","ki"],["spiel","ki"],["ki","nebel"]];
 const MODES = { verstehen:"Verstehen", machen:"Selbst machen", erleben:"Erleben", teilen:"Mit anderen teilen", entdecken:"Entdecken" };
 const DREAMS = ["Island","Yellowstone","Redwoods","San Francisco","Hawaii","Neuseeland","Australien","Japan","Tibet","Sri Lanka","Bali","Thailand","China","Türkei"];
 
@@ -802,6 +821,15 @@ sport:["Tae Kwon Do wieder aufnehmen – ein Probetraining","Wie bleibt man mit 
 musik:["Einen eigenen elektronischen Track bauen","Eine Salsa-Probestunde","Tango argentino – ein Abend in der Milonga","Ein Festival für elektronische Musik","Wie entsteht ein Beat? Die Technik dahinter","Tanzen, wo niemand zuschaut","Trommeln lernen","Die Geschichte des Techno in Deutschland","Ein Konzert in der Elbphilharmonie","Musik mit Klängen aus der Natur","Ein Tanzkurs – auch allein anmelden","Warum berührt uns Musik so stark?","Eine Playlist für die nächste Motorradtour","Live-Musik in einer kleinen Bar","Einen DJ-Workshop besuchen","Swing oder Lindy Hop ausprobieren","Singen in einem Männerchor","Musik aus einem fremden Land entdecken","Tanzen als Meditation","Zu Hause eine Tanzrunde nur für dich","Klänge am Wasser aufnehmen"],
 spiel:["Eine D&D-Runde als Gast ausprobieren","Ein Brettspielabend mit Freunden","Die Lieblingsfilme der eigenen Jugend wiedersehen","Ein Videospiel mit offener Welt erkunden","Eine Fantasy-Figur skizzieren","Geschichten aus deinem Leben aufschreiben","Wie erzeugen Filme Spannung?","Ein Escape Room mit Freunden","Mit dem Enkel spielen wie früher","Ein Hörbuch am Lagerfeuer","Die Geschichte von Lego","Kino unter freiem Himmel","Ein eigenes Spiel erfinden","Ein Erzählcafé: Menschen erzählen ihr Leben","Improtheater ausprobieren","Wie werden Videospiele gemacht?","Schach wieder lernen","Eine Filmnacht mit passendem Essen","Warum spielen Erwachsene so wenig?","Eine kurze Geschichte für den Enkel erfinden","Einen Kurzfilm mit dem Handy drehen"],
 ki:["Einen Track im Stil der Berliner Schule mit KI entwerfen","Verstehen, wie ein Sequenzer-Sound der 70er entsteht","Mit KI ein Gedicht über das Wasser weiterschreiben","Eine kleine App für ein eigenes Bedürfnis bauen","Ein Bild deiner Traumreise entstehen lassen","KI einem Handwerker in fünf Minuten erklären","Wie denkt eine KI? Ein Blick unter die Haube","KI für Handwerksbetriebe: Was hilft wirklich?","Ein kleines Album aus eigenen KI-Tracks zusammenstellen","Die Geschichte von Tangerine Dream mit KI erkunden","Einen Synthesizer-Klang Schritt für Schritt nachbauen","Mit KI eine Tour auf dem Trans Euro Trail planen","Eine Lebensstation mit KI auf einer Seite aufschreiben","Ein D&D-Abenteuer mit KI erfinden","Mit KI eine neue Sprache üben","Mit KI eine Präsentation für deine Beratung bauen","Was KI nicht kann – und warum das beruhigend ist","Ein Lied für den Enkel mit KI schreiben","Mit KI einen Text für deine Homepage verbessern","Eine Frage stellen, die dich schon ewig beschäftigt","Einem Freund zeigen, was mit KI möglich ist"],
+blumen:["Welche Blumen blühen gerade, und welche kommen als Nächstes?","Einen Strauß der Jahreszeit binden, mit dem, was der Markt hergibt","Ein Grab liebevoll bepflanzen, passend zur Jahreszeit","Welche Pflanzen halten Sonne, Frost und wenig Gießen aus?","Zwiebeln im Herbst setzen und im Frühling überrascht werden","Einen Balkonkasten so bepflanzen, dass er bis zum Frost blüht","Warum duften Rosen am Morgen stärker?","Ikebana: Mit drei Zweigen ein ganzes Bild legen","Einen Rosengarten zur Blütezeit besuchen","Was bedeuten Blumen? Die alte Sprache der Sträuße","Kräuter auf der Fensterbank ziehen","Blumen pressen und eine Karte damit gestalten","Einen Ableger von einer Freundin bekommen und großziehen","Eine Gärtnerei besuchen und sich beraten lassen","Wildblumen für Bienen und Schmetterlinge säen","Ein Herbstgesteck aus Zapfen, Moos und Hagebutten","Eine Orchidee wieder zum Blühen bringen","Den eigenen Lieblingsduft im Garten finden","Ein Gartenfest der offenen Gärten besuchen","Einen Kranz für die Tür binden, im Advent oder im Sommer","Blumen verschenken, einfach so, ohne Anlass"],
+herz:["Jemanden anrufen, von dem man lange nichts gehört hat","Einen handgeschriebenen Brief verschicken","Einfach zuhören, ohne gleich einen Rat zu geben","Für jemanden kochen, dem es gerade nicht gut geht","Wie tröstet man richtig? Was hilft wirklich?","Einer älteren Nachbarin den Einkauf mitbringen","Ehrenamtlich vorlesen, in der Kita oder im Heim","Einen Besuchsdienst kennenlernen","Bei der Tafel einen Vormittag mithelfen","Ein kleines Päckchen für jemanden packen, der allein ist","Warum tut Helfen auch dem Helfenden gut?","Einen Geburtstag nicht vergessen, sondern feiern","Jemandem sagen, was man an ihm schätzt","Eine Patenschaft für ein Kind oder ein Tier","Einem jungen Menschen beim Bewerben helfen","Sich selbst so umsorgen, wie man andere umsorgt","Einen Nachmittag mit jemandem verbringen, der wenig Besuch bekommt","Wie sagt man Nein, ohne kalt zu sein?","Eine Kerze für jemanden anzünden, an den man denkt","Ein Dankeschön an die Menschen, die selten eins bekommen","Einen Menschen auf einem schweren Weg begleiten"],
+familie:["Mit den Enkeln Plätzchen backen","Ein Fotobuch vom letzten Jahr gestalten","Die Familienrezepte in ein Heft schreiben","Einen Stammbaum zeichnen: Wer gehört alles dazu?","Den Enkeln erzählen, wie es war, als man selbst klein war","Ein Spiel von früher mit den Enkeln spielen","Ein Familienfest ausrichten, klein und gemütlich","Warum sind Großeltern so wichtig für Kinder?","Eine Erinnerungskiste für ein Enkelkind anlegen","Mit dem Enkel einen Ausflug machen, den es sich aussucht","Eine Gute-Nacht-Geschichte selbst erfinden","Ein altes Familienfoto erklären lassen, solange man noch fragen kann","Einen festen Oma-Tag oder Enkel-Tag einrichten","Gemeinsam etwas pflanzen und wachsen sehen","Mit den Kindern über früher reden, bei einem Kaffee","Einen Familien-Gruppenchat mit schönen Bildern füllen","Was gebe ich weiter? Werte, Rezepte, Geschichten","Mit den Enkeln basteln, was gerade zur Jahreszeit passt","Ein Lied oder einen Reim weitergeben, den man selbst als Kind lernte","Einen Brief an ein Enkelkind schreiben, zum späteren Lesen","Ein Familienessen, bei dem jeder etwas mitbringt"],
+nachbarn:["Eine Nachbarin auf einen Kaffee einladen","Auf dem Wochenmarkt mit den Händlern ins Gespräch kommen","Einen Bücherschrank in der Nähe finden und ein Buch tauschen","Was gibt es Neues im Viertel? Eine Runde mit offenen Augen","Einen Seniorentreff oder ein Begegnungscafé besuchen","Bei einem Straßenfest oder Gemeindefest dabei sein","Eine Strick- oder Handarbeitsrunde ausprobieren","Den Namen eines Nachbarn lernen, den man nur vom Grüßen kennt","Ein Kuchenstück bei den neuen Nachbarn vorbeibringen","Wie entsteht eine gute Nachbarschaft?","Einen Spaziergang zu zweit fest verabreden","Im Treppenhaus einen Zettel aufhängen: Wer hat Lust auf…?","Den Kiosk oder Bäcker an der Ecke kennenlernen","Ein Tauschregal oder einen Pflanzentausch anregen","Beim Kirchencafé oder in der Gemeinde vorbeischauen","Eine Geschichte über das Viertel von früher hören","Einen Spieleabend im Gemeinschaftsraum anregen","Mit jemandem auf der Parkbank ins Gespräch kommen","Einem Nachbarn bei einer Kleinigkeit helfen","Eine Nachbarschaftsgruppe im Handy finden","Gemeinsam die Blumen vor dem Haus pflegen"],
+royals:["Wie lebte Königin Elisabeth II. mit 70 Jahren auf dem Thron?","Die wahre Geschichte von Kaiserin Sisi","Afternoon Tea mit Scones und Clotted Cream","Ein Schloss in der Nähe besichtigen","Schloss Schwerin: ein Märchenschloss im Norden","Warum faszinieren Königshäuser so viele Menschen?","Die Kronjuwelen im Tower of London","Ludwig II. und seine Traumschlösser","Dänemarks Königshaus: eines der ältesten Europas","Ein Royals-Abend mit einer Freundin, mit Tee und Doku","Die schönsten königlichen Hochzeitskleider","Wie funktioniert eine Krönung?","Was ist ein Hofknicks, und wer macht ihn heute noch?","Ein Schlossgarten zur Rosenblüte","Hüte und Fascinators: die Kunst der Kopfbedeckung","Die Royals im Fernsehen: Serie oder Wirklichkeit?","Königliche Rezepte nachkochen","Schloss Versailles und der Sonnenkönig","Wie leben Prinzessinnen heute wirklich?","Eine Schlossführung bei Kerzenschein","Die Geschichte einer Königin, die man noch nicht kennt"],
+schoen:["Eine Gesichtsmaske selbst anrühren, aus Quark und Honig","Einen Duft finden, der wirklich zu einem passt","Ein Nachmittag im Thermalbad","Wie pflegt man reife Haut richtig?","Eine Farbberatung: Welche Farben lassen einen strahlen?","Eine Handmassage für sich selbst","Ein Wellnessnachmittag zu Hause, mit Freundin","Naturkosmetik selbst herstellen: eine Creme","Eine neue Frisur wagen","Wie entstehen Parfüms? Kopf-, Herz- und Basisnote","Ein Fußbad mit Lavendel","Nägel lackieren in einer Farbe, die man sonst nie nimmt","Eine Kosmetikerin zur Beratung besuchen","Rosenwasser oder Lavendelöl selbst ansetzen","Warum tut Pflege auch der Seele gut?","Ein Schminktipp, der in fünf Minuten wirkt","Einmal in die Sauna","Ein Duftsäckchen für den Kleiderschrank nähen","Was steckt in einer guten Creme?","Ein Spaziergang mit frisch gepflegtem Gefühl","Sich selbst im Spiegel freundlich anschauen"],
+mode:["Drei neue Kombinationen aus dem eigenen Kleiderschrank","Ein Tuch auf fünf Arten binden","Ein Lieblingsstück im Secondhandladen finden","Eine Modeausstellung im Museum besuchen","Welche Schnitte schmeicheln, welche nicht?","Eine Kleidertauschparty mit Freundinnen","Den Kleiderschrank nach Farben ordnen","Die Mode der 60er und 70er wiederentdecken","Ein altes Kleidungsstück umändern lassen","Wie entsteht ein Trend?","Einen Knopf annähen und gleich einen schöneren nehmen","Coco Chanel: die Geschichte des kleinen Schwarzen","Schmuck neu kombinieren","Eine Stilberatung ausprobieren","Ein Outfit für einen besonderen Anlass zusammenstellen","Ein Hut, der Mut macht","Stoffe fühlen: Leinen, Seide, Wolle","Eine Tasche selbst nähen","Mode aus anderen Ländern: Sari, Kimono, Tracht","Mit einer Freundin einen Bummel ohne Kaufzwang","Das eine Teil, in dem man sich am wohlsten fühlt"],
+kochen:["Ein Rezept von der Großmutter nachkochen","Marmelade aus Früchten der Saison einkochen","Ein Brot selbst backen","Mit Freundinnen zusammen kochen","Pizza backen mit den Enkeln","Ein Gericht aus einem fremden Land ausprobieren","Einen Kuchen für jemanden backen, einfach so","Warum geht Hefeteig auf?","Einen Kochkurs ausprobieren","Ein Familienessen am Sonntag","Kräuterbutter und Kräutersalz selbst machen","Eine Suppe für die ganze Woche kochen","Plätzchen nach altem Rezept","Ein Picknick liebevoll vorbereiten","Saisonal kochen: Was gibt es gerade frisch?","Einen Sauerteig ansetzen und pflegen","Ein Gericht aus der eigenen Kindheit","Tischdeko für ein kleines Fest","Rezepte mit der Nachbarin tauschen","Eine Torte verzieren","Ein Kochbuch mit eigenen Rezepten anlegen"],
+erinnern:["Alte Fotos sortieren und die schönsten aufhängen","Einen Brief an einen Menschen schreiben, der nicht mehr da ist","Einen Lieblingsort von früher noch einmal besuchen","Eine Erinnerungskiste anlegen","Ein Lied hören, das an eine schöne Zeit erinnert","Aufschreiben, wie man sich kennengelernt hat","Eine Kerze anzünden und an jemanden denken","Ein Foto aus der Kindheit beschreiben: Was war da los?","Mit einer alten Freundin über früher sprechen","Ein Lieblingsgericht eines geliebten Menschen kochen","Warum werden Erinnerungen mit den Jahren milder?","Einen Gegenstand in die Hand nehmen, der eine Geschichte hat","Die eigene Lebensgeschichte in kleinen Kapiteln aufschreiben","Den Jahrestag eines schönen Tages feiern","Ein Gedicht oder Spruch, der einen begleitet hat","Einen alten Film schauen, den man zu zweit gesehen hat","Das Grab besuchen und etwas erzählen","Fotos digitalisieren, damit die Familie sie hat","Einen Baum pflanzen zur Erinnerung","Danke sagen für eine Zeit, die vorbei ist","Ein Erinnerungsbuch für die Enkel"],
 nebel:["Ein Abend im Planetarium","Aquarell malen, ohne es zu können","Zehn Wörter Japanisch lernen","Wie entstehen schwarze Löcher?","Die Welt durch ein Kameraobjektiv sehen","Töpfern an der Drehscheibe","Ein Gedicht schreiben","Wie funktioniert unser Gedächtnis?","Ein Museum, in das du nie gehen würdest","Einem Imker eine Stunde zuschauen","Kochen wie in einem fremden Land"]
 };
 
@@ -816,6 +844,15 @@ sport:[["Mach fünf Minuten Dehnen oder Tae-Kwon-Do-Grundstellungen.","Such ein 
 musik:[["Hör einen elektronischen Track ganz bewusst mit Kopfhörern.","Tanz zu einem Lied in der Küche.","Such einen Salsa- oder Tangokurs in deiner Nähe."],["Bau in einer Musik-App einen einfachen Beat.","Stell eine Playlist für die nächste Motorradtour zusammen.","Frag bei einer Tanzschule nach einer Probestunde."],["Geh zu einer Salsa- oder Tango-Probestunde.","Besuch einen Abend mit elektronischer Musik.","Geh zu einem Konzert, das du allein nie ausgesucht hättest."]],
 spiel:[["Such, ob es in Hamburg D&D-Runden für Erwachsene gibt.","Denk an deinen Lieblingsfilm von früher und warum er es war.","Schreib eine kleine Geschichte aus deinem Leben auf, fünf Sätze."],["Schau einen alten Lieblingsfilm wieder.","Spiel ein Brettspiel mit jemandem.","Erfinde eine Figur für eine Fantasygeschichte."],["Spiel eine D&D-Runde mit, oder lade selbst zu einer ein.","Organisiere einen Spieleabend.","Geh mit anderen in einen Escape Room."]],
 ki:[["Frag Claude, wie Edgar Froese seine Klangflächen gebaut hat.","Lass dir von Claude eine Frage beantworten, die dich schon lange beschäftigt.","Frag Claude nach drei Ideen für einen neuen Track."],["Entwirf mit Claude einen neuen Track und hör ihn dir in Ruhe an.","Bau mit Claude ein kleines Werkzeug für deinen Alltag.","Lass dir erklären, wie ein Sequenzer der 70er funktioniert, und probier es aus."],["Bau aus drei KI-Tracks ein kleines Album mit Titel und Coverbild.","Zeig einem Freund einen Nachmittag lang, was mit KI möglich ist.","Entwickle mit Claude ein Angebot für deine KI-Beratung."]],
+blumen:[["Schau, welche Blume gerade vor deiner Tür blüht, und finde ihren Namen heraus.","Gieß deine Pflanzen und schau jede einmal richtig an.","Stell eine einzelne Blüte in ein Glas auf den Tisch."],["Kauf auf dem Markt einen Strauß der Jahreszeit und bind ihn neu.","Pflanz etwas Neues in einen Topf oder Balkonkasten.","Bring frische Blumen an einen Ort, der dir wichtig ist."],["Besuch eine Gärtnerei oder einen schönen Park und lass dich inspirieren.","Gestalte ein Beet oder einen Kasten passend zur Jahreszeit neu.","Setz Blumenzwiebeln, damit im Frühling eine Überraschung wartet."]],
+herz:[["Schreib einer Person eine Nachricht: Ich denk an dich.","Überleg, wer sich gerade über einen Anruf freuen würde.","Tu dir selbst etwas Gutes, so wie du es für andere tun würdest."],["Ruf jemanden an, von dem du lange nichts gehört hast.","Schreib eine Karte mit der Hand und schick sie ab.","Bring jemandem eine Kleinigkeit vorbei."],["Besuch jemanden, der selten Besuch bekommt.","Frag bei einem Besuchsdienst oder Vorleseprojekt nach, wie man mitmacht.","Koch oder back für jemanden, dem es gerade nicht gut geht."]],
+familie:[["Schick einem Familienmitglied ein altes Foto mit einem Satz dazu.","Schreib ein Familienrezept auf, bevor es verloren geht.","Überleg dir ein Spiel von früher, das du den Enkeln zeigen möchtest."],["Ruf ein Enkelkind oder Kind an und frag nach seiner Woche.","Bastel oder mal etwas mit den Enkeln.","Such zehn Fotos für ein kleines Fotobuch heraus."],["Back mit den Enkeln Plätzchen oder Pizza.","Mach einen Ausflug, den sich ein Enkelkind aussucht.","Lade die Familie zu einem kleinen Essen ein."]],
+nachbarn:[["Grüß heute einen Nachbarn mit Namen, oder frag ihn danach.","Such heraus, wo der nächste Bücherschrank steht.","Schau nach, ob es in deiner Nähe ein Begegnungscafé gibt."],["Geh auf den Wochenmarkt und komm mit einem Händler ins Gespräch.","Bring ein Buch zum Bücherschrank und nimm ein anderes mit.","Lade eine Nachbarin auf einen Kaffee ein."],["Besuch einen Seniorentreff, eine Strickrunde oder das Gemeindecafé.","Geh zu einem Straßenfest oder Gemeindefest.","Rege im Haus etwas Gemeinsames an, einen Pflanzentausch oder Kaffeeklatsch."]],
+royals:[["Schau eine kurze Doku über ein Königshaus.","Lies, wie die Geschichte von Sisi wirklich war.","Such dir ein Schloss in deiner Nähe heraus."],["Mach dir einen Afternoon Tea mit Scones und gutem Tee.","Schau eine Folge einer Royals-Serie und lies nach, was davon stimmt.","Ruf eine Freundin an und verabrede einen Royals-Abend."],["Besuch ein Schloss mit Führung.","Geh durch einen Schlossgarten und trink danach Tee.","Mach einen Royals-Abend mit einer Freundin, mit Tee, Gebäck und Doku."]],
+schoen:[["Creme deine Hände ganz langsam und bewusst ein.","Such deinen Lieblingsduft heraus und trag ihn heute einfach so.","Schau dich im Spiegel an und sag dir etwas Freundliches."],["Rühr dir eine Gesichtsmaske aus Quark und Honig an.","Mach dir ein Fußbad mit Lavendel und leg die Beine hoch.","Probier eine Nagelfarbe, die du sonst nie nehmen würdest."],["Geh ins Thermalbad oder in die Sauna.","Mach einen Wellnessnachmittag mit einer Freundin.","Lass dich bei einer Kosmetikerin oder Farbberatung beraten."]],
+mode:[["Stell aus deinem Schrank eine neue Kombination zusammen.","Bind ein Tuch auf eine Art, die du noch nie probiert hast.","Such das Kleidungsstück, in dem du dich am wohlsten fühlst, und zieh es heute an."],["Geh in einen Secondhandladen und schau, was dich anlacht.","Sortier eine Schublade aus und gib etwas weiter.","Kombinier deinen Schmuck neu."],["Besuch eine Modeausstellung oder ein Museum für Mode.","Lade Freundinnen zu einer kleinen Kleidertauschparty ein.","Mach mit einer Freundin einen Bummel ohne Kaufzwang."]],
+kochen:[["Schreib ein Rezept auf, das du auswendig kannst.","Such ein Gericht aus einem Land heraus, das du noch nie gekocht hast.","Riech an drei Gewürzen und überleg, wozu sie passen."],["Koch ein Rezept aus deiner Kindheit nach.","Back einen einfachen Kuchen und verschenk ein Stück.","Mach Kräuterbutter oder Kräutersalz."],["Koch Marmelade aus Früchten der Saison ein.","Lade jemanden zum gemeinsamen Kochen ein.","Back mit den Enkeln Pizza oder Plätzchen."]],
+erinnern:[["Nimm ein altes Foto in die Hand und erinnere dich, was damals los war.","Hör ein Lied, das dich an eine schöne Zeit erinnert.","Zünde eine Kerze an und denk an jemanden, der dir fehlt."],["Schreib einen kurzen Brief an einen Menschen, der nicht mehr da ist.","Sortier eine Handvoll Fotos und häng das schönste auf.","Ruf jemanden an und sprich über eine gemeinsame Erinnerung."],["Besuch einen Lieblingsort von früher.","Leg eine Erinnerungskiste an, mit Fotos, Briefen und kleinen Dingen.","Koch das Lieblingsgericht eines geliebten Menschen und lade jemanden dazu ein."]],
 nebel:[["Schau heute Abend bewusst in den Sternenhimmel.","Lerne fünf Wörter einer neuen Sprache.","Fotografiere drei Dinge, die dir sonst nie auffallen."],["Mal ein Aquarell, egal wie es wird.","Schreib ein kleines Gedicht über das Wasser.","Koch ein Gericht aus einem Land, das du nicht kennst."],["Besuch das Planetarium.","Mach einen Töpfer- oder Malkurs zum Ausprobieren.","Geh in ein Museum, das du nie gewählt hättest."]]
 };
 
@@ -845,10 +882,12 @@ function blob(cx,cy,rx,ry,k){
 }
 function intMap(){
   const sel=ui.intSel;
-  const lv={}; ISLES.forEach(i=>lv[i.id]=isleLevel(i.id));
-  const routes=BRIDGES.filter(([a,b])=>lv[a]>=2&&lv[b]>=2).map(([a,b])=>{ const A=isleById(a),B=isleById(b); return `<line x1="${A.cx}" y1="${A.cy}" x2="${B.cx}" y2="${B.cy}" stroke="#B98A4E" stroke-width="2" stroke-dasharray="4 5" stroke-linecap="round"/>`; }).join("");
+  const AI=activeIsles(), at=id=>AI.find(x=>x.id===id);
+  const lv={}; AI.forEach(i=>lv[i.id]=isleLevel(i.id));
+  const routes=BRIDGES.filter(([a,b])=>at(a)&&at(b)&&lv[a]>=2&&lv[b]>=2).map(([a,b])=>{ const A=at(a),B=at(b); return `<line x1="${A.cx}" y1="${A.cy}" x2="${B.cx}" y2="${B.cy}" stroke="#B98A4E" stroke-width="2" stroke-dasharray="4 5" stroke-linecap="round"/>`; }).join("");
   const waves=[[20,28],[208,112],[140,392],[312,138],[18,196],[320,318]].map(([x,y])=>`<path d="M${x} ${y} q 8 -5 16 0 t 16 0" fill="none" stroke="var(--wave)" stroke-width="1.5"/>`).join("");
-  const isles=ISLES.map(i=>{
+  const lab=isleLabels(AI);
+  const isles=AI.map(i=>{
     const l=lv[i.id], on=sel===i.id;
     const fill = l>=3?"var(--isle3)":l===2?"var(--isle2)":"var(--isle0)";
     const stroke = l>=2?"var(--isle-line)":"var(--muted)";
@@ -858,16 +897,46 @@ function intMap(){
     if(l===0) extra=`<circle cx="${i.cx}" cy="${i.cy}" r="21" fill="var(--fog)" opacity=".93"/><circle cx="${i.cx-16}" cy="${i.cy+6}" r="16" fill="var(--fog)" opacity=".93"/><circle cx="${i.cx+16}" cy="${i.cy+4}" r="16" fill="var(--fog)" opacity=".93"/>`;
     return `${on?`<ellipse cx="${i.cx}" cy="${i.cy}" rx="${i.rx+6}" ry="${i.ry+6}" fill="none" stroke="var(--accent)" stroke-width="2"/>`:""}
       <path d="${blob(i.cx,i.cy,i.rx,i.ry,i.k)}" fill="${fill}" stroke="${stroke}" stroke-width="1.5" ${l===1?'stroke-dasharray="4 3"':""}/>${extra}
-      <text x="${i.cx}" y="${i.cy+i.ry+18}" text-anchor="middle" font-size="12" font-weight="600" fill="${l===0?"var(--muted)":"var(--ink)"}">${esc(i.name)}</text>`;
+      <text x="${lab[i.id].x.toFixed(1)}" y="${i.cy+i.ry+18}" text-anchor="middle" font-size="${lab[i.id].f.toFixed(1)}" font-weight="600" fill="${l===0?"var(--muted)":"var(--ink)"}">${esc(i.name)}</text>`;
   }).join("");
-  const btns=ISLES.map(i=>`<button class="isle-btn" style="left:${i.cx-i.rx-4}px;top:${i.cy-i.ry-8}px;width:${(i.rx+4)*2}px;height:${i.ry*2+30}px" data-act="int-sel" data-v="${i.id}" aria-pressed="${sel===i.id}" aria-label="${esc(i.name)}, ${LEVELS[lv[i.id]]}"></button>`).join("");
+  const btns=AI.map(i=>`<button class="isle-btn" style="left:${i.cx-i.rx-4}px;top:${i.cy-i.ry-8}px;width:${(i.rx+4)*2}px;height:${i.ry*2+30}px" data-act="int-sel" data-v="${i.id}" aria-pressed="${sel===i.id}" aria-label="${esc(i.name)}, ${LEVELS[lv[i.id]]}"></button>`).join("");
   return `<div class="map"><svg width="358" height="400" viewBox="0 0 358 400" aria-hidden="true">${waves}${routes}${isles}</svg>${btns}</div>`;
+}
+/* Beschriftung: stößt ein Name an den Nachbarn oder den Rand, wird er etwas kleiner geschrieben oder leicht verschoben */
+function isleLabels(AI){
+  const out={}; AI.forEach(i=>out[i.id]={x:i.cx,f:12,w:i.name.length*6.2});
+  const half=i=>out[i.id].w*out[i.id].f/24;
+  SLOT_ROWS.forEach(row=>{ const r=row.map(n=>AI.find(i=>i.slot===n)).filter(Boolean);
+    r.forEach(i=>{ const o=out[i.id], h=half(i); if(o.x-h<4) o.x=4+h; if(o.x+h>354) o.x=354-h; });
+    for(let n=0;n<r.length-1;n++){ const A=r[n],B=r[n+1], oa=out[A.id], ob=out[B.id];
+      const over=(oa.x+half(A)+6)-(ob.x-half(B)); if(over<=0) continue;
+      const L=oa.w>=ob.w?A:B, S=L===A?B:A, ol=out[L.id], gap=ob.x-oa.x-6-half(S);
+      ol.f=Math.max(9.5, Math.min(12, gap*24/ol.w));
+      if((out[B.id].x-half(B))-(out[A.id].x+half(A))<6){ out[S.id].f=Math.max(9.5,out[S.id].f-1); }
+    }
+  });
+  return out;
 }
 function intBar(back="#/"){ return `<div class="bar"><button class="back" data-act="${back==="#/"?"go":"int-home"}" data-to="#/">‹ ${back==="#/"?"Kompass":"Karte"}</button><span class="kicker">Interesse</span><button class="pill" data-act="go" data-to="#/pause">Pause</button></div>`; }
 
+function intHasData(I){ return !!(Object.keys(I.hits).length || Object.keys(I.exp).length || I.pending.length || I.rounds); }
+function screenIntSetup(){
+  const I=intS(); if(!ui.intPick) ui.intPick=(I.isles||(intHasData(I)?ISLE_DEFAULT:[])).slice();
+  const pk=ui.intPick, first=!I.isles && !intHasData(I);
+  const list=ISLES.filter(i=>i.id!=="nebel");
+  return `${first?`<div class="bar"><button class="back" data-act="go" data-to="#/">‹ Kompass</button><span class="kicker">Interesse</span><button class="pill" data-act="go" data-to="#/pause">Pause</button></div>`:intBar("map")}
+    <h1>${first?"Deine Karte einrichten":"Inseln auswählen"}</h1>
+    <div class="muted" style="line-height:1.45;margin-top:-8px">Welche Inseln sollen auf deiner Karte liegen? Wähle bis zu ${ISLE_MAX}, was dich auch nur ein bisschen anspricht. Das Unbekannte Land ist immer dabei.</div>
+    <div class="chips">${list.map(i=>{ const on=pk.includes(i.id), l=isleLevel(i.id); return `<button class="chip ${on?"on":""}" style="height:44px" data-act="int-pick" data-v="${i.id}" aria-pressed="${on}">${esc(i.name)}${l?" ·"+"•".repeat(l):""}</button>`; }).join("")}</div>
+    <div class="small muted">${pk.length} von ${ISLE_MAX} gewählt${pk.length<ISLE_MIN?` · mindestens ${ISLE_MIN}`:""}. Abgewählte Inseln behalten ihre Spuren und kommen zurück, wenn du sie wieder wählst.</div>
+    <div id="intPickErr" class="small" style="color:var(--danger);min-height:18px"></div>
+    <button class="btn" data-act="int-pick-save">${first?"Karte erstellen":"Übernehmen"}</button>`;
+}
 function screenInt(){
   const I=intS(), v=ui.intView||"map";
   if(I.round) return screenIntRound();
+  if(!I.isles && intHasData(I)){ I.isles=ISLE_DEFAULT.slice(); I.isleHint=true; save(); }
+  if(!I.isles || v==="setup") return screenIntSetup();
   if(v==="exp") return screenIntExp();
   if(v==="reflect") return screenIntReflect();
   const sel=ui.intSel ? isleById(ui.intSel) : null;
@@ -891,15 +960,18 @@ function screenInt(){
       <div style="line-height:1.45">${esc(pend.text)}</div>
       <div class="row" style="margin-top:6px"><button class="btn sm" data-act="int-done" data-v="${pend.id}">Erledigt – nachspüren</button><button class="btn sm quiet" data-act="int-drop" data-v="${pend.id}">Verwerfen</button></div></div>`:""}
     ${intMap()}
+    ${I.isleHint?`<div class="card"><div class="kicker">Neu</div><div style="line-height:1.45">Es gibt neue Inseln: Blumen &amp; Garten, Familie &amp; Enkel, Nachbarschaft, Royals &amp; Schlösser, Mode &amp; Stil und mehr. Du kannst deine Karte selbst zusammenstellen.</div>
+      <div class="row" style="margin-top:6px"><button class="btn sm" data-act="int-setup">Inseln ansehen</button><button class="btn sm quiet" data-act="int-hint-off">Später</button></div></div>`:""}
     ${selCard || `<div class="soft small">Tippe auf eine Insel für eine Expedition, oder starte eine Runde mit Karten, damit sich der Nebel lichtet.</div>`}
     <button class="btn" data-act="int-round">Neue Runde · ca. 4 Min.</button>
+    <button class="linkbtn" data-act="int-setup">Inseln auswählen</button>
     ${modeTot?`<div class="card"><div class="kicker">Was dich an Dingen reizt</div>${topModes.map(([m,n])=>`<div class="mode"><span>${MODES[m]}</span><span class="track"><span style="width:${Math.round(n/topModes[0][1]*100)}%"></span></span></div>`).join("")}</div>`:""}`;
 }
 
 function intPickRound(){
   const I=intS(); const ids=[];
-  const pools={}; ISLES.forEach(i=>{ const all=CARDS[i.id].map((_,n)=>i.id+":"+n); let un=all.filter(x=>!I.seen.includes(x)); if(!un.length){ I.seen=I.seen.filter(x=>!x.startsWith(i.id+":")); un=all; } pools[i.id]=un.sort(()=>Math.random()-.5); });
-  const order=ISLES.map(i=>i.id).sort(()=>Math.random()-.5);
+  const AI=activeIsles(); const pools={}; AI.forEach(i=>{ const all=CARDS[i.id].map((_,n)=>i.id+":"+n); let un=all.filter(x=>!I.seen.includes(x)); if(!un.length){ I.seen=I.seen.filter(x=>!x.startsWith(i.id+":")); un=all; } pools[i.id]=un.sort(()=>Math.random()-.5); });
+  const order=AI.map(i=>i.id).sort(()=>Math.random()-.5);
   let k=0; while(ids.length<ROUND_SIZE && k<100){ const id=order[k%order.length]; if(pools[id].length) ids.push(pools[id].shift()); k++; }
   return ids.sort(()=>Math.random()-.5);
 }
@@ -982,6 +1054,15 @@ function screenIntReflect(){
 function intAction(a,b){
   const I=intS(), v=b.dataset.v;
   if(a==="int-home"){ ui.intView="map"; render(); window.scrollTo(0,0); }
+  else if(a==="int-setup"){ ui.intPick=null; I.isleHint=false; save(); ui.intView="setup"; render(); window.scrollTo(0,0); }
+  else if(a==="int-hint-off"){ I.isleHint=false; save(); render(); }
+  else if(a==="int-pick"){ const pk=ui.intPick; const k=pk.indexOf(v);
+    if(k>=0) pk.splice(k,1); else if(pk.length<ISLE_MAX) pk.push(v); else { toast("Höchstens "+ISLE_MAX+" Inseln. Wähle erst eine ab."); return; }
+    render(); }
+  else if(a==="int-pick-save"){ const pk=ui.intPick||[];
+    if(pk.length<ISLE_MIN){ document.getElementById("intPickErr").textContent="Wähle mindestens "+ISLE_MIN+" Inseln."; return; }
+    I.isles=ISLES.map(i=>i.id).filter(id=>pk.includes(id)); I.isleHint=false; ui.intPick=null; ui.intSel=null; ui.intView="map"; save();
+    toast("Deine Karte ist eingerichtet."); render(); window.scrollTo(0,0); }
   else if(a==="int-sel"){ ui.intSel = ui.intSel===v?null:v; render(); }
   else if(a==="int-round"){ I.round={ ids:intPickRound(), i:0, hits:[], reflect:0 }; save(); render(); window.scrollTo(0,0); }
   else if(a==="int-card"){
@@ -1536,7 +1617,7 @@ function render(){
   if(h==="#/bereich/loslassen") losAfterRender();
 }
 let lastRoute = "#/";
-window.addEventListener("hashchange", ()=>{ ui.confirmDel=null; ui.confirmWipe=false; ui.losBackfill=false; ui.losConfirmDiscard=false; ui.erkConfirmCancel=false; ui.ordConfirmCancel=false; ui.losView=null; ui.habDel=null; ui.intView="map"; ui.frView="main"; render(); window.scrollTo(0,0); });
+window.addEventListener("hashchange", ()=>{ ui.confirmDel=null; ui.confirmWipe=false; ui.losBackfill=false; ui.losConfirmDiscard=false; ui.erkConfirmCancel=false; ui.ordConfirmCancel=false; ui.losView=null; ui.habDel=null; ui.intView="map"; ui.intPick=null; ui.frView="main"; render(); window.scrollTo(0,0); });
 
 function startBreath(){
   const b=document.getElementById("breath"), t=document.getElementById("breathTxt");
