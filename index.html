@@ -128,7 +128,7 @@ button.entry{font:inherit;color:inherit}
 "use strict";
 /* ---------- Daten ---------- */
 const KEY = "lebenskompass.v1";
-const VERSION = "Etappe 6.2";
+const VERSION = "Etappe 7";
 const DIRS = {
   erkennen:  { name:"Erkennen",  pos:"n", rot:0,   kicker:"Oben · Beginn", text:"Was hält dich ab? Oder: Was Altes kommt hoch und will eingeordnet werden?", cta:"Starten" },
   loslassen: { name:"Loslassen", pos:"e", rot:90,  kicker:"Rechts", text:"Stärke einschätzen, Gefühl benennen, im Körper beschreiben, dabeibleiben, bis es nachlässt.", cta:"Runde beginnen" },
@@ -234,6 +234,10 @@ function screenStart(){
         <button class="btn sm quiet" data-act="ci-later" data-id="${due.id}">Noch nicht</button>
         <button class="btn sm quiet" data-act="ci-drop" data-id="${due.id}">Nicht mehr wichtig</button>
       </div></div>` : ""}
+  ${(()=>{ const hd=habDue(); if(!hd) return ""; const st=habStats(hd.h);
+    return `<div class="card"><div class="kicker">Gewohnheit · ${st.streak} ${st.streak===1?"Tag":"Tage"} in Folge</div>
+      <h2>${hd.label} ohne „${esc(hd.h.name)}“?</h2>
+      <div class="row" style="margin-top:6px"><button class="btn sm" data-act="hab-ok" data-v="${hd.h.id}" data-k="${hd.key}">Geschafft</button><button class="btn sm quiet" data-act="hab-no" data-v="${hd.h.id}" data-k="${hd.key}">Nicht geschafft</button></div></div>`; })()}
   ${backupDue ? `<div class="card">
       <div class="kicker">Datensicherung</div>
       <div>Dein letzter Stand ist über einen Monat alt. Magst du kurz sichern?</div>
@@ -373,6 +377,7 @@ function losDuration(L){ return Math.max(1, Math.round((Date.now()-new Date(L.be
 
 function screenLos(){
   const L = S.los;
+  if(ui.losView==="habits") return screenHabits();
   if(ui.losBackfill) return screenLosBackfill();
   if(!L) return screenLosIntro();
   if(!ui.losResumeOk && (Date.now()-new Date(L.begun).getTime()) > 6*36e5){
@@ -460,7 +465,8 @@ function screenLosIntro(){
     </div>
     <div class="soft small">In jeder Runde: Stärke einschätzen, Gefühl benennen, im Körper beschreiben, dabeibleiben, bis es nachlässt.</div>
     <button class="btn" data-act="los-start">Erste Runde beginnen</button>
-    <button class="linkbtn" data-act="los-backfill">Eine Sitzung nachtragen</button>`;
+    <button class="linkbtn" data-act="los-backfill">Eine Sitzung nachtragen</button>
+    <button class="path" data-act="hab-open"><span class="k">Ein Tag nach dem anderen</span><span class="t">Eine Gewohnheit loslassen</span><span class="d">${habS().length?habS().map(h=>esc(h.name)+": "+habStats(h).streak+" Tage in Folge").join(" · "):"Zähle die Tage ohne eine Gewohnheit, die dir nicht guttut."}</span></button>`;
 }
 
 function screenLosBackfill(){
@@ -609,12 +615,13 @@ function erkCancel(){
 }
 function erkField(id,val,ph,rows=4){ return `<textarea class="t" id="${id}" rows="${rows}" placeholder="${esc(ph)}">${esc(val||"")}</textarea>`; }
 function erkErrBox(){ return `<div id="erkErr" class="small" style="color:var(--danger);min-height:18px"></div>`; }
-function erkNav(back=true){ return `<button class="btn" data-act="erk-next">Weiter</button>${back?`<button class="linkbtn" data-act="erk-back">‹ Vorige Frage</button>`:""}`; }
+function erkNav(back=true){ const s=S.erk?S.erk.step:0; return `<button class="btn" data-act="erk-next">Weiter</button>${s>=3&&s<=7?`<button class="btn quiet" data-act="erk-skip">Überspringen</button>`:""}${back?`<button class="linkbtn" data-act="erk-back">‹ Vorige Frage</button>`:""}${s>=3?`<button class="linkbtn" data-act="erk-finish">Jetzt abschließen</button>`:""}`; }
 function erkAreaText(E){ return E.areas.map(a=>a==="Anderes"&&E.other?E.other:a).join(" · "); }
 function erkOptions(E){ return E.options.split(/\n|;/).map(s=>s.replace(/^[-•*\d.)\s]+/,"").trim()).filter(Boolean); }
 
 function screenErk(){
   const E=S.erk;
+  if(S.ein) return screenEin();
   if(S.ord) return screenOrd();
   if(!E) return screenErkDoors();
   if(false){
@@ -699,11 +706,11 @@ function screenErk(){
       ${row("Wunsch",E.wish)}
       ${row("Bremse",E.body)}
       ${row("Der Satz dazu",E.sentence?`„${E.sentence}“`:"",true)}
-      ${E.noRule?"":row("Die stille Regel",`„Ich darf das erst genießen oder tun, wenn ${E.rule}“`,true)}
+      ${E.noRule||!E.rule?"":row("Die stille Regel",`„Ich darf das erst genießen oder tun, wenn ${E.rule}“`,true)}
       ${row("Wenn es nur ein alter Gedanke wäre",E.oldThought)}
       ${row("Trotzdem möglich",erkOptions(E).join(" · "))}
-      <div style="background:var(--accent-soft);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:2px">
-        <div class="kicker">Mein kleiner Schritt diese Woche</div><div style="line-height:1.4">${esc(E.small)}</div></div>
+      ${E.small?`<div style="background:var(--accent-soft);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:2px">
+        <div class="kicker">Mein kleiner Schritt diese Woche</div><div style="line-height:1.4">${esc(E.small)}</div></div>`:""}
     </div>
     <button class="btn" data-act="erk-save">Ins Journal</button>
     <div class="small muted" style="text-align:center">Hat sich dabei ein starkes Gefühl gezeigt?</div>
@@ -722,9 +729,9 @@ function erkSaveEntry(){
   if(!E.noRule && E.rule) L.push(`Regel: „Ich darf das erst genießen oder tun, wenn ${E.rule}“`);
   if(E.oldThought) L.push("Wenn es nur ein alter Gedanke wäre: "+E.oldThought);
   const o=erkOptions(E); if(o.length) L.push("Trotzdem möglich: "+o.join(" · "));
-  L.push("Kleiner Schritt: "+E.small);
+  if(E.small) L.push("Kleiner Schritt: "+E.small);
   addEntry({ area:"erkennen", title: (!E.noRule && E.rule) ? "Die stille Regel" : "Meine Bremse", text:L.join("\n"), meta:Object.assign({},E) });
-  if(E.ask) addCheckin({ area:"erkennen", text:E.small, inDays:3 });
+  if(E.ask && E.small) addCheckin({ area:"erkennen", text:E.small, inDays:3 });
   S.erk=null; save();
 }
 function erkAction(a,b){
@@ -736,7 +743,9 @@ function erkAction(a,b){
   else if(a==="erk-add"){ const f=document.getElementById("erkIn"); f.value=(f.value.trim()?f.value.trim()+", ":"")+b.dataset.v; erkErr(""); }
   else if(a==="erk-fill"){ const f=document.getElementById("erkIn"); f.value=b.dataset.v; erkErr(""); }
   else if(a==="erk-small"){ const f=document.getElementById("erkIn"); if(f) f.value=""; E.small=b.dataset.v; const ck=document.getElementById("erkAsk"); if(ck) E.ask=ck.checked; save(); render(); }
-  else if(a==="erk-norule"){ E.noRule=true; E.rule=""; erkGo(6); }
+  else if(a==="erk-norule"){ E.noRule=true; E.rule=""; erkGo(7); }
+  else if(a==="erk-skip"){ const s=E.step; erkGo(s===7||s===71?8:s+1); }
+  else if(a==="erk-finish"){ const f=document.getElementById("erkIn"); if(f&&f.value.trim()){ const s=E.step; if(s===3) E.body=f.value.trim(); if(s===4) E.sentence=f.value.trim(); if(s===6) E.oldThought=f.value.trim(); if(s===7) E.options=f.value.trim(); if(s===71) E.small=f.value.trim(); } erkGo(8); }
   else if(a==="erk-back"){
     const s=E.step; const prev = s===8?71 : s===71?7 : Math.max(1,s-1);
     erkGo(prev);
@@ -771,8 +780,8 @@ const ISLES = [
   { id:"ferne",    name:"Ferne Länder",        cx:298, cy:80,  rx:40, ry:26, k:[1.1,.9,1,1.15,.85,1,.95,1.05] },
   { id:"wald",     name:"Wald & Natur",        cx:105, cy:160, rx:38, ry:23, k:[1,1.1,.85,1,1.1,.9,1,.95] },
   { id:"gemeinschaft", name:"Gemeinschaft",    cx:240, cy:168, rx:46, ry:27, k:[.95,1,1.1,.9,1,1.1,.85,1] },
-  { id:"bauen",    name:"Bauen & Holz",        cx:58,  cy:250, rx:36, ry:24, k:[1.05,.9,1,1.1,.95,.85,1.1,1] },
-  { id:"sport",    name:"Sport & Kampfkunst",  cx:170, cy:252, rx:34, ry:22, k:[1,.9,1.1,1,.85,1.05,1,1.1] },
+  { id:"bauen",    name:"Gestalten & Bauen",        cx:58,  cy:250, rx:36, ry:24, k:[1.05,.9,1,1.1,.95,.85,1.1,1] },
+  { id:"sport",    name:"Sport & Kampfkunst",  cx:188, cy:252, rx:34, ry:22, k:[1,.9,1.1,1,.85,1.05,1,1.1] },
   { id:"musik",    name:"Musik & Tanz",        cx:292, cy:262, rx:36, ry:23, k:[.9,1.05,1,.9,1.1,1,.95,1.05] },
   { id:"spiel",    name:"Spiel & Geschichten", cx:68,  cy:340, rx:34, ry:23, k:[1,1.1,.9,1,1.05,.9,1.1,.95] },
   { id:"ki",       name:"KI-Labor",            cx:185, cy:345, rx:36, ry:24, k:[1.05,.9,1.1,.95,1,.9,1.05,1] },
@@ -783,26 +792,26 @@ const MODES = { verstehen:"Verstehen", machen:"Selbst machen", erleben:"Erleben"
 const DREAMS = ["Island","Yellowstone","Redwoods","San Francisco","Hawaii","Neuseeland","Australien","Japan","Tibet","Sri Lanka","Bali","Thailand","China","Türkei"];
 
 const CARDS = {
-wasser:["Wie liest ein Segler den Wind auf der Alster?","Einmal auf dem Surfbrett die erste Welle stehen","Warum ist die Ostsee weniger salzig als die Nordsee?","Die schönsten Badestellen an der Elbe entdecken","Nachts im Meer schwimmen, wenn das Wasser leuchtet","Wie entstehen Ebbe und Flut?","Ein Wochenende auf einem Hausboot","Wie navigierte man früher nur mit Sternen und Sextant?","Wracktauchen in der Ostsee","Einen Fisch fangen, ausnehmen und am Wasser grillen","Stand-up-Paddling bei Sonnenaufgang","Wie funktioniert ein Tragflächenboot?","Den Sportbootführerschein See machen","Die Geschichte der Hamburger Hafenfähren","Wie finden Aale ihren Weg bis in die Sargassosee?","Eisbaden im Winter","Mit dem Kanu die Alsterkanäle erkunden","Wie baut ein Biber seinen Damm?","Ein Segeltörn auf einem Traditionsschiff","Kitesurfen zuschauen und das Prinzip verstehen","Wellen lesen: Woran erkennt man die perfekte Welle?"],
-motorrad:["Den Trans Euro Trail in Norddeutschland abfahren","Die höchste befahrbare Straße Europas erreichen","Wie funktioniert eine Enduro-Federung im Gelände?","Ein Offroad-Training auf Schotter und Sand","Mit dem Motorrad von Badestelle zu Badestelle an der Küste","Einen alten Motor zerlegen und verstehen","Wie verändert der Elektromotor das Motorradfahren?","Die großen Alpenpässe: Stilfser Joch, Großglockner, Timmelsjoch","Mit dem E-Roller die eigene Stadt neu entdecken","Offroad navigieren mit GPS-Tracks","Eine Motorradgruppe für gemeinsame Touren finden","Neben dem Motorrad im Zelt übernachten","Eine Enduro-Probefahrt beim Händler","Eine Motorradreise zum Nordkap planen","Wie funktioniert ein Navigationssatellit?","Ein Drohnenflug über die Küste","Wie funktioniert ABS in der Kurve?","Die Geschichte der Rallye Paris–Dakar","Das eigene Motorrad selbst warten","Ein kleines Robotik-Projekt mit dem Enkel","Wie sieht die Mobilität in 20 Jahren aus?"],
+wasser:["Wie liest ein Segler den Wind auf der Alster?","Einmal auf dem Surfbrett die erste Welle stehen","Warum ist die Ostsee weniger salzig als die Nordsee?","Die schönsten Badestellen an der Elbe entdecken","Nachts im Meer schwimmen, wenn das Wasser leuchtet","Wie entstehen Ebbe und Flut?","Eine Stunde Tretboot fahren","Wie navigierte man früher nur mit Sternen und Sextant?","Schnorcheln an der Ostsee","Einen Fisch fangen, ausnehmen und am Wasser grillen","Stand-up-Paddling bei Sonnenaufgang","Wie funktioniert ein Tragflächenboot?","Eine Stunde mit dem Mietboot auf der Alster","Die Geschichte der Hamburger Hafenfähren","Wie finden Aale ihren Weg bis in die Sargassosee?","Eisbaden im Winter","Mit dem Kanu die Alsterkanäle erkunden","Wie baut ein Biber seinen Damm?","Einen Traditionssegler im Hafen besichtigen","Kitesurfen zuschauen und das Prinzip verstehen","Wellen lesen: Woran erkennt man die perfekte Welle?"],
+motorrad:["Den Trans Euro Trail in Norddeutschland abfahren","Die höchste befahrbare Straße Europas erreichen","Wie funktioniert eine Enduro-Federung im Gelände?","Ein Offroad-Training auf Schotter und Sand","Mit dem Motorrad von Badestelle zu Badestelle an der Küste","Eine Zündkerze selbst wechseln und verstehen","Wie verändert der Elektromotor das Motorradfahren?","Die großen Alpenpässe: Stilfser Joch, Großglockner, Timmelsjoch","Mit dem E-Roller die eigene Stadt neu entdecken","Offroad navigieren mit GPS-Tracks","Eine Motorradgruppe für gemeinsame Touren finden","Neben dem Motorrad im Zelt übernachten","Eine Enduro-Probefahrt beim Händler","Eine Motorradreise zum Nordkap planen","Wie funktioniert ein Navigationssatellit?","Ein Drohnenflug über die Küste","Wie funktioniert ABS in der Kurve?","Die Geschichte der Rallye Paris–Dakar","Das eigene Motorrad selbst warten","Mit dem Enkel einen kleinen Roboter-Bausatz anschauen","Wie sieht die Mobilität in 20 Jahren aus?"],
 ferne:["Old Faithful im Yellowstone ausbrechen sehen","Unter den Redwoods stehen, den höchsten Bäumen der Welt","Island: Geysire, Gletscher und Nordlichter","Wellenreiten auf Hawaii","Mit dem Van durch Neuseeland","Das Outback Australiens bei Nacht","Tempel und Reisterrassen auf Bali","Kyoto im Herbst","Ein Kloster in Tibet besuchen","Mit dem Zug durch das Hochland von Sri Lanka","Der Große Basar in Istanbul","Thailand: Inseln und Garküchen","San Francisco und die Golden Gate Bridge","Eine Weltreise planen: Wie lange, wie teuer?","Wie leben Menschen auf einer Hallig?","Mit dem Frachtschiff reisen","Auf der Chinesischen Mauer wandern","Die Lofoten in Norwegen im Sommer","Warum reisen Menschen überhaupt?","Mit Menschen vor Ort kochen lernen","Noch einmal durch Afrika – wie wäre das heute?"],
-gemeinschaft:["Einen NFL-Abend für Freunde ausrichten","Die Nationalmannschaft gemeinsam in einer Kneipe schauen","Einen neuen Freundeskreis gründen – wie fängt man an?","In einem Segelverein Mitglied werden","Ein Nachbarschaftsfest organisieren","Über Meet5 ein eigenes Treffen anbieten","Warum machen Rituale eine Gemeinschaft stark?","Jüngeren Menschen etwas beibringen","Ein Stammtisch für Motorradfahrer","Was hält einen Verein lebendig?","Bei einem Repair-Café mitmachen","Gemeinsam kochen mit Menschen, die man kaum kennt","Ehrenamtlich Menschen an die Küste fahren","Wie entstehen echte Freundschaften im Erwachsenenalter?","Ein Pflanztag mit dem Trinkwasserwald","Menschen aus anderen Ländern in Hamburg kennenlernen","Eine Wandergruppe mitgründen","Ein Abend mit Geschichten am Lagerfeuer","Einen Kurs geben, in dem du selbst unterrichtest","Mentor für jemanden sein, der sich selbstständig macht","Ein Grillabend an der Hütte für alle Nachbarn"],
-wald:["Wie sprechen Bäume über ihre Wurzeln miteinander?","Sich einen Wald von einem Förster erklären lassen","Eine Nacht draußen im Wald verbringen","Pilze sammeln und bestimmen lernen","Was macht einen Trinkwasserwald aus?","Die nächste Pflanze vor der Tür bestimmen","Vögel an ihrem Gesang erkennen","Einen Baum pflanzen und über Jahre begleiten","Wie überleben Tiere den Winter?","Spuren im Schnee oder Matsch lesen","Die Lüneburger Heide zur Blütezeit","Barfuß durch Moos und Wald gehen","Ein Insektenhotel bauen","Wildkräuter sammeln und damit kochen","Wie entsteht ein Moor, und warum ist es so wichtig?","Der Sternenhimmel ohne Stadtlicht","Ein Wildtier lange und bewusst beobachten","Das Wattenmeer bei Ebbe erwandern","Warum werden Blätter im Herbst bunt?","Eine Stunde Waldbaden","Ein eigenes Beet anlegen"],
-bauen:["Ein altes Holzboot restaurieren","Einen Steg am Wasser bauen","Wie wurden Fachwerkhäuser ohne Nägel gebaut?","Ein Möbelstück aus Treibholz","Eine kleine Hütte oder ein Tiny House planen","Traditionelle japanische Holzverbindungen","Eine Werkstatt mit anderen teilen","Ein Musikinstrument aus Holz bauen","Wie baut man eine Brücke, die trägt?","Mit dem Enkel etwas aus Holz bauen","Die Walz: als Zimmermann auf Wanderschaft","Ein Baumhaus bauen","Holzschnitzen lernen","Wie hält ein Dachstuhl einem Sturm stand?","Alte Werkzeuge sammeln und verstehen","Ein großes Lego-Modell bauen","Nachbarn beim Bau eines Balkons begleiten","Ein Möbelstück reparieren statt wegwerfen","Wie bauen Vögel ihre Nester?","Holz aus dem Wald selbst verarbeiten","Ein kurzes Lehrvideo über dein Handwerk drehen"],
-sport:["Tae Kwon Do wieder aufnehmen – ein Probetraining","Wie bleibt man mit über 60 beweglich und stark?","Handball live in der Halle sehen","Noch einmal Skifahren in den Alpen","Wie trainieren NFL-Spieler?","Tai Chi am Morgen im Park","Die Philosophie hinter den Kampfkünsten","Ein Kampfkunstfilm mit neuen Augen","1000 Meter im Freibad schwimmen","Bouldern ausprobieren","Fünf Kilometer am Stück laufen","Beachvolleyball am Elbstrand","Wie funktioniert Muskelaufbau im Alter?","Yoga für Männer, die nie Yoga gemacht haben","Wieder einmal im Tor stehen","100 Kilometer Fahrrad an einem Tag","Beim Kindertraining im Tae Kwon Do helfen","Tischtennis im Park","Klettern im Hochseilgarten","Mit dem Fahrrad an der Elbe bis Cuxhaven","Wie wirkt Bewegung auf die Stimmung?"],
-musik:["Einen eigenen elektronischen Track bauen","Eine Salsa-Probestunde","Tango argentino – ein Abend in der Milonga","Ein Festival für elektronische Musik","Wie entsteht ein Beat? Die Technik dahinter","Tanzen, wo niemand zuschaut","Trommeln lernen","Die Geschichte des Techno in Deutschland","Ein Konzert in der Elbphilharmonie","Musik mit Klängen aus der Natur","Ein Tanzkurs – auch allein anmelden","Warum berührt uns Musik so stark?","Eine Playlist für die nächste Motorradtour","Live-Musik in einer kleinen Bar","Einen DJ-Workshop besuchen","Swing oder Lindy Hop ausprobieren","Singen in einem Männerchor","Musik aus einem fremden Land entdecken","Tanzen als Meditation","Selbst einen Tanzabend organisieren","Klänge am Wasser aufnehmen"],
-spiel:["Eine D&D-Runde gründen oder mitspielen","Ein Brettspielabend mit Freunden","Die Lieblingsfilme der eigenen Jugend wiedersehen","Ein Videospiel mit offener Welt erkunden","Eine eigene Fantasywelt erfinden","Geschichten aus deinem Leben aufschreiben","Wie erzeugen Filme Spannung?","Ein Escape Room mit Freunden","Mit dem Enkel spielen wie früher","Ein Hörbuch am Lagerfeuer","Die Geschichte von Lego","Kino unter freiem Himmel","Ein eigenes Spiel erfinden","Ein Erzählcafé: Menschen erzählen ihr Leben","Improtheater ausprobieren","Wie werden Videospiele gemacht?","Schach wieder lernen","Eine Filmnacht mit passendem Essen","Warum spielen Erwachsene so wenig?","Ein Rollenspiel draußen im Wald","Einen Kurzfilm mit dem Handy drehen"],
-ki:["Einen Track im Stil der Berliner Schule mit KI entwerfen","Verstehen, wie ein Sequenzer-Sound der 70er entsteht","Mit KI ein Gedicht über die Hütte am Wasser weiterschreiben","Eine kleine App für ein eigenes Bedürfnis bauen","Ein Bild deiner Traumreise entstehen lassen","KI einem Handwerker in fünf Minuten erklären","Wie denkt eine KI? Ein Blick unter die Haube","KI für Handwerksbetriebe: Was hilft wirklich?","Ein kleines Album aus eigenen KI-Tracks zusammenstellen","Die Geschichte von Tangerine Dream mit KI erkunden","Einen Synthesizer-Klang Schritt für Schritt nachbauen","Mit KI eine Tour auf dem Trans Euro Trail planen","Die eigene Lebensgeschichte mit KI zu einem kleinen Buch ordnen","Ein D&D-Abenteuer mit KI erfinden","Mit KI eine neue Sprache üben","Mit KI eine Präsentation für deine Beratung bauen","Was KI nicht kann – und warum das beruhigend ist","Ein Lied für den Enkel mit KI schreiben","Mit KI eine Homepage gestalten","Eine Frage stellen, die dich schon ewig beschäftigt","Einem Freund zeigen, was mit KI möglich ist"],
-nebel:["Ein Abend im Planetarium","Aquarell malen, ohne es zu können","Eine neue Sprache anfangen, etwa Japanisch","Wie entstehen schwarze Löcher?","Die Welt durch ein Kameraobjektiv sehen","Töpfern an der Drehscheibe","Ein Gedicht schreiben","Wie funktioniert unser Gedächtnis?","Ein Museum, in das du nie gehen würdest","Imkerei: ein Bienenvolk begleiten","Kochen wie in einem fremden Land"]
+gemeinschaft:["Einen NFL-Abend für Freunde ausrichten","Die Nationalmannschaft gemeinsam in einer Kneipe schauen","Einen Menschen neu kennenlernen – wie fängt man an?","In einem Segelverein Mitglied werden","Nachbarn zu einem kleinen Umtrunk einladen","Über Meet5 ein eigenes Treffen anbieten","Warum machen Rituale eine Gemeinschaft stark?","Jüngeren Menschen etwas beibringen","Einmal bei einem Motorrad-Stammtisch vorbeischauen","Was hält einen Verein lebendig?","Bei einem Repair-Café mitmachen","Gemeinsam kochen mit Menschen, die man kaum kennt","Ehrenamtlich Menschen an die Küste fahren","Wie entstehen echte Freundschaften im Erwachsenenalter?","Ein Pflanztag mit dem Trinkwasserwald","Menschen aus anderen Ländern in Hamburg kennenlernen","Bei einer Wandergruppe einmal mitlaufen","Ein Abend mit Geschichten am Lagerfeuer","Jemandem eine Stunde lang etwas beibringen","Mentor für jemanden sein, der sich selbstständig macht","Ein kleiner Grillabend mit zwei, drei Nachbarn"],
+wald:["Wie sprechen Bäume über ihre Wurzeln miteinander?","Sich einen Wald von einem Förster erklären lassen","Einen Abend im Wald sitzen, bis es dunkel wird","Pilze sammeln und bestimmen lernen","Was macht einen Trinkwasserwald aus?","Die nächste Pflanze vor der Tür bestimmen","Vögel an ihrem Gesang erkennen","Einen Baum aussuchen und ihn ein Jahr lang beobachten","Wie überleben Tiere den Winter?","Spuren im Schnee oder Matsch lesen","Die Lüneburger Heide zur Blütezeit","Barfuß durch Moos und Wald gehen","Ein Insektenhotel bauen","Wildkräuter sammeln und damit kochen","Wie entsteht ein Moor, und warum ist es so wichtig?","Der Sternenhimmel ohne Stadtlicht","Ein Wildtier lange und bewusst beobachten","Das Wattenmeer bei Ebbe erwandern","Warum werden Blätter im Herbst bunt?","Eine Stunde Waldbaden","Einen Blumentopf auf der Dachterrasse neu bepflanzen"],
+bauen:["Ins Badezimmer gehen und schauen, was sich verschönern lässt","Eine Ecke der Dachterrasse neu gestalten","Kalligraphie mit Feder und Tusche ausprobieren","Ein Origami-Tier falten","Einen Strauß vom Wegrand binden","Ein Bild malen, nur mit drei Farben","Eine Skulptur aus Treibholz und Steinen bauen","Einen Linoldruck machen","Den Tisch so decken, dass es ein kleines Fest wird","Ein Regal neu ordnen, bis es schön aussieht","Licht und Kerzen in einem Raum neu setzen","Ein altes Möbelstück neu streichen","Ein kleines Holzschiffchen schnitzen","Einen Blumenkasten aus Restholz bauen","Wie wurden Fachwerkhäuser ohne Nägel gebaut?","Ein Möbelstück aus Treibholz","Ein Tiny House von innen anschauen","Traditionelle japanische Holzverbindungen","Eine offene Werkstatt besuchen","Eine einfache Rassel oder Flöte aus Holz bauen","Wie baut man eine Brücke, die trägt?","Mit dem Enkel etwas aus Holz bauen","Die Geschichte der Walz: Zimmerleute auf Wanderschaft","Ein Vogelhaus bauen","Holzschnitzen lernen","Wie hält ein Dachstuhl einem Sturm stand?","Alte Werkzeuge sammeln und verstehen","Ein kleines Lego-Set an einem Abend bauen","Nachbarn bei einem kleinen Projekt einen Rat geben","Ein Möbelstück reparieren statt wegwerfen","Wie bauen Vögel ihre Nester?","Einen schönen Ast finden und daraus einen Haken schnitzen","Einen Holz-Tipp mit dem Handy aufnehmen"],
+sport:["Tae Kwon Do wieder aufnehmen – ein Probetraining","Wie bleibt man mit über 60 beweglich und stark?","Handball live in der Halle sehen","Noch einmal Skifahren in den Alpen","Wie trainieren NFL-Spieler?","Tai Chi am Morgen im Park","Die Philosophie hinter den Kampfkünsten","Ein Kampfkunstfilm mit neuen Augen","1000 Meter im Freibad schwimmen","Bouldern ausprobieren","Fünf Kilometer am Stück laufen","Beachvolleyball am Elbstrand","Wie funktioniert Muskelaufbau im Alter?","Yoga für Männer, die nie Yoga gemacht haben","Wieder einmal im Tor stehen","20 Kilometer an der Elbe radeln","Beim Kindertraining im Tae Kwon Do helfen","Tischtennis im Park","Klettern im Hochseilgarten","Mit dem Rad zum nächsten Elbstrand","Wie wirkt Bewegung auf die Stimmung?"],
+musik:["Einen eigenen elektronischen Track bauen","Eine Salsa-Probestunde","Tango argentino – ein Abend in der Milonga","Ein Festival für elektronische Musik","Wie entsteht ein Beat? Die Technik dahinter","Tanzen, wo niemand zuschaut","Trommeln lernen","Die Geschichte des Techno in Deutschland","Ein Konzert in der Elbphilharmonie","Musik mit Klängen aus der Natur","Ein Tanzkurs – auch allein anmelden","Warum berührt uns Musik so stark?","Eine Playlist für die nächste Motorradtour","Live-Musik in einer kleinen Bar","Einen DJ-Workshop besuchen","Swing oder Lindy Hop ausprobieren","Singen in einem Männerchor","Musik aus einem fremden Land entdecken","Tanzen als Meditation","Zu Hause eine Tanzrunde nur für dich","Klänge am Wasser aufnehmen"],
+spiel:["Eine D&D-Runde als Gast ausprobieren","Ein Brettspielabend mit Freunden","Die Lieblingsfilme der eigenen Jugend wiedersehen","Ein Videospiel mit offener Welt erkunden","Eine Fantasy-Figur skizzieren","Geschichten aus deinem Leben aufschreiben","Wie erzeugen Filme Spannung?","Ein Escape Room mit Freunden","Mit dem Enkel spielen wie früher","Ein Hörbuch am Lagerfeuer","Die Geschichte von Lego","Kino unter freiem Himmel","Ein eigenes Spiel erfinden","Ein Erzählcafé: Menschen erzählen ihr Leben","Improtheater ausprobieren","Wie werden Videospiele gemacht?","Schach wieder lernen","Eine Filmnacht mit passendem Essen","Warum spielen Erwachsene so wenig?","Eine kurze Geschichte für den Enkel erfinden","Einen Kurzfilm mit dem Handy drehen"],
+ki:["Einen Track im Stil der Berliner Schule mit KI entwerfen","Verstehen, wie ein Sequenzer-Sound der 70er entsteht","Mit KI ein Gedicht über das Wasser weiterschreiben","Eine kleine App für ein eigenes Bedürfnis bauen","Ein Bild deiner Traumreise entstehen lassen","KI einem Handwerker in fünf Minuten erklären","Wie denkt eine KI? Ein Blick unter die Haube","KI für Handwerksbetriebe: Was hilft wirklich?","Ein kleines Album aus eigenen KI-Tracks zusammenstellen","Die Geschichte von Tangerine Dream mit KI erkunden","Einen Synthesizer-Klang Schritt für Schritt nachbauen","Mit KI eine Tour auf dem Trans Euro Trail planen","Eine Lebensstation mit KI auf einer Seite aufschreiben","Ein D&D-Abenteuer mit KI erfinden","Mit KI eine neue Sprache üben","Mit KI eine Präsentation für deine Beratung bauen","Was KI nicht kann – und warum das beruhigend ist","Ein Lied für den Enkel mit KI schreiben","Mit KI einen Text für deine Homepage verbessern","Eine Frage stellen, die dich schon ewig beschäftigt","Einem Freund zeigen, was mit KI möglich ist"],
+nebel:["Ein Abend im Planetarium","Aquarell malen, ohne es zu können","Zehn Wörter Japanisch lernen","Wie entstehen schwarze Löcher?","Die Welt durch ein Kameraobjektiv sehen","Töpfern an der Drehscheibe","Ein Gedicht schreiben","Wie funktioniert unser Gedächtnis?","Ein Museum, in das du nie gehen würdest","Einem Imker eine Stunde zuschauen","Kochen wie in einem fremden Land"]
 };
 
 const EXPS = {
 wasser:[["Such auf der Karte drei Badestellen, die du noch nicht kennst.","Schau ein Video: Wie lernt man Surfen mit über 60?","Setz dich fünf Minuten ans Wasser und hör nur zu."],["Geh an die Alster und schau den Seglern eine halbe Stunde zu.","Ruf eine Segelschule an und frag nach einer Schnupperstunde.","Schwimm eine Runde im nächsten Bad oder See."],["Buch eine Probestunde Segeln auf der Alster.","Fahr an die Ostsee und probier eine neue Badestelle aus.","Miete ein Kanu oder SUP und erkunde die Alsterkanäle."]],
 motorrad:[["Schau dir den Trans Euro Trail für Deutschland auf der Karte an.","Such die drei höchsten Pässe, die du mit dem Motorrad erreichen kannst.","Schau ein Video über Enduro-Fahrtechnik."],["Plane eine Küstenroute mit drei Badestellen.","Such ein Offroad-Training in Norddeutschland heraus.","Dreh eine Runde mit dem E-Roller um die Alster."],["Fahr die erste TET-Etappe in Norddeutschland.","Mach eine Motorradtour zur Küste und bade unterwegs.","Besuch ein Offroad-Gelände und fahr selbst."]],
 ferne:[["Schau eine kurze Doku über {z}.","Such drei Bilder von {z}, die dich berühren.","Schreib auf, warum dich {z} anzieht."],["Recherchiere beste Reisezeit, Anreise und grobe Kosten für {z}.","Sprich mit jemandem, der {z} schon erlebt hat.","Skizziere eine erste Route für {z}."],["Stell einen echten Reiseplan für {z} auf, mit Monat und Jahr.","Leg ein Reisekonto für {z} an und plane den ersten Betrag.","Mach einen {z}-Abend mit Essen, Bildern und Musik, und lade jemanden ein."]],
-gemeinschaft:[["Schreib einem Freund: Lust auf NFL am Sonntag?","Schau nach, wann die Nationalmannschaft das nächste Mal spielt.","Such auf Meet5 nach einem Treffen in deiner Nähe."],["Lade zwei, drei Leute zu einem NFL- oder Fußballabend ein.","Such einen Verein heraus, der dich reizt, und den nächsten Schnuppertag.","Biete auf Meet5 selbst ein Treffen an."],["Richte einen NFL-Abend aus, mit Snacks und erklärten Regeln.","Geh zu einem Vereinsabend oder Stammtisch.","Organisiere ein Treffen an der Hütte."]],
-wald:[["Bestimme die nächste Pflanze vor deiner Tür.","Hör fünf Minuten einem Vogel zu und versuch, ihn zu erkennen.","Finde vom Fenster aus drei verschiedene Grüntöne."],["Geh eine halbe Stunde in den Wald, ohne Handy.","Sammle drei Blätter und bestimme die Bäume dazu.","Such heraus, wann der nächste Pflanztag beim Trinkwasserwald ist."],["Mach bei einem Pflanztag mit.","Wandere einen halben Tag durch einen Wald, den du nicht kennst.","Übernachte einmal draußen unter freiem Himmel."]],
-bauen:[["Skizziere eine Idee für einen Steg oder ein Möbelstück.","Schau ein Video über japanische Holzverbindungen.","Nimm ein Stück Holz in die Hand und überleg, was es werden will."],["Repariere etwas, das schon lange kaputt ist.","Bau mit dem Enkel etwas Kleines aus Holz.","Besuch eine offene Werkstatt oder ein Repair-Café."],["Bau ein Insektenhotel oder ein Vogelhaus.","Fang ein Möbelstück aus Treibholz an.","Hilf jemandem bei einem Bauprojekt."]],
+gemeinschaft:[["Schreib einem Freund: Lust auf NFL am Sonntag?","Schau nach, wann die Nationalmannschaft das nächste Mal spielt.","Such auf Meet5 nach einem Treffen in deiner Nähe."],["Lade zwei, drei Leute zu einem NFL- oder Fußballabend ein.","Such einen Verein heraus, der dich reizt, und den nächsten Schnuppertag.","Biete auf Meet5 selbst ein Treffen an."],["Richte einen NFL-Abend aus, mit Snacks und erklärten Regeln.","Geh zu einem Vereinsabend oder Stammtisch.","Lade zwei Nachbarn zu Kaffee und Kuchen ein."]],
+wald:[["Bestimme die nächste Pflanze vor deiner Tür.","Hör fünf Minuten einem Vogel zu und versuch, ihn zu erkennen.","Finde vom Fenster aus drei verschiedene Grüntöne."],["Geh eine halbe Stunde in den Wald, ohne Handy.","Sammle drei Blätter und bestimme die Bäume dazu.","Such heraus, wann der nächste Pflanztag beim Trinkwasserwald ist."],["Mach bei einem Pflanztag mit.","Wandere einen halben Tag durch einen Wald, den du nicht kennst.","Bleib draußen, bis die ersten Sterne zu sehen sind."]],
+bauen:[["Geh ins Badezimmer und schau, was du verschönern kannst.","Stell auf dem Tisch drei Dinge neu zusammen, bis es dir gefällt.","Schreib ein einziges Wort ganz langsam in Schönschrift.","Nimm ein Stück Holz in die Hand und überleg, was es werden will."],["Gestalte eine Ecke der Dachterrasse oder des Balkons neu.","Falte ein Origami, Schritt für Schritt nach einer Anleitung.","Bind einen kleinen Strauß vom Wegrand und stell ihn auf.","Repariere etwas, das schon lange kaputt ist."],["Bau aus Treibholz ein kleines Objekt für deine Dachterrasse.","Mal ein Bild nur mit drei Farben und häng es auf.","Bau ein Insektenhotel oder ein Vogelhaus.","Gestalte einen Raum mit Licht und Kerzen ganz neu."]],
 sport:[["Mach fünf Minuten Dehnen oder Tae-Kwon-Do-Grundstellungen.","Such ein Tae-Kwon-Do-Training für Ältere in Hamburg.","Schau ein kurzes Video über NFL-Taktik."],["Schwimm eine halbe Stunde.","Vereinbare ein Probetraining, Tae Kwon Do oder Tai Chi.","Fahr mit dem Rad eine neue Strecke an der Elbe."],["Geh zu einem Probetraining.","Fahr mit dem Rad an der Elbe entlang, so weit du Lust hast.","Geh bouldern oder in den Hochseilgarten."]],
 musik:[["Hör einen elektronischen Track ganz bewusst mit Kopfhörern.","Tanz zu einem Lied in der Küche.","Such einen Salsa- oder Tangokurs in deiner Nähe."],["Bau in einer Musik-App einen einfachen Beat.","Stell eine Playlist für die nächste Motorradtour zusammen.","Frag bei einer Tanzschule nach einer Probestunde."],["Geh zu einer Salsa- oder Tango-Probestunde.","Besuch einen Abend mit elektronischer Musik.","Geh zu einem Konzert, das du allein nie ausgesucht hättest."]],
 spiel:[["Such, ob es in Hamburg D&D-Runden für Erwachsene gibt.","Denk an deinen Lieblingsfilm von früher und warum er es war.","Schreib eine kleine Geschichte aus deinem Leben auf, fünf Sätze."],["Schau einen alten Lieblingsfilm wieder.","Spiel ein Brettspiel mit jemandem.","Erfinde eine Figur für eine Fantasygeschichte."],["Spiel eine D&D-Runde mit, oder lade selbst zu einer ein.","Organisiere einen Spieleabend.","Geh mit anderen in einen Escape Room."]],
@@ -1016,9 +1025,9 @@ function intAction(a,b){
 
 /* ---------- Freude (Etappe 5) ---------- */
 const Q_KURS = ["Beobachtungsfreude","Lachfreude","Vaterfreude","Menschenbeobachtungsfreude","Bewegungsfreude","Ruhefreude","Musikfreude","Geschwindigkeitsfreude","Tierkontaktfreude","Forschungsfreude","Spürfreude","Gestaltungsfreude","Feldfreude","Geschafft-Freude","Naturfreude","Verbundenheitsfreude","Familienfreude"];
-const Q_MORE = ["Freiheitsfreude","Staunfreude","Geborgenheitsfreude","Mutfreude","Leichtigkeitsfreude","Dankbarkeitsfreude","Schenkfreude"];
+const Q_MORE = ["Schöpferfreude","Freiheitsfreude","Staunfreude","Geborgenheitsfreude","Mutfreude","Leichtigkeitsfreude","Dankbarkeitsfreude","Schenkfreude"];
 const QUALITIES = Q_KURS.concat(Q_MORE);
-const Q_INFO = { "Feldfreude":"Die Freude, wenn du spürst, dass Gutes gleichzeitig an vielen Orten geschieht: Gemeinschaft als Heilfeld, ein Bewusstsein, das überall aufblüht." };
+const Q_INFO = { "Schöpferfreude":"Die Freude am schöpferischen Tun: Wenn unter deinen Händen etwas entsteht, das es vorher nicht gab – ein Klang, ein Bild, ein Gesteck, ein Stück Holz mit neuer Form.", "Feldfreude":"Die Freude, wenn du spürst, dass Gutes gleichzeitig an vielen Orten geschieht: Gemeinschaft als Heilfeld, ein Bewusstsein, das überall aufblüht." };
 const Q_OLD = { Sinne:"Spürfreude", Freiheit:"Freiheitsfreude", Schaffen:"Gestaltungsfreude", "Können":"Geschafft-Freude", Staunen:"Staunfreude", Stille:"Ruhefreude", Ausgelassenheit:"Lachfreude", Bewegung:"Bewegungsfreude", Geben:"Schenkfreude", Verbundenheit:"Verbundenheitsfreude", Dankbarkeit:"Dankbarkeitsfreude", Ordnung:"Geschafft-Freude", Mut:"Mutfreude", Leichtigkeit:"Leichtigkeitsfreude", Neugier:"Forschungsfreude", Entdecken:"Forschungsfreude", "Nähe":"Verbundenheitsfreude", Geborgenheit:"Geborgenheitsfreude" };
 const LOVE = [["partnerschaft","Partnerschaft","Eros"],["freundschaft","Freundschaft","Philia"],["familie","Familie","Storge"],["welt","Zuwendung zur Welt","Agape"],["selbst","Selbstliebe","Philautia"]];
 const LIBRARY = [
@@ -1038,7 +1047,11 @@ const LIBRARY = [
   ["l27","Holz sägen, hobeln oder schnitzen",["Schaffen","Sinne"]],["l28","Sich hinlegen und den Wolken nachschauen",["Leichtigkeit","Staunen"]],
   ["l29","Ein Lieblingsalbum ganz durchhören, ohne etwas anderes zu tun",["Musikfreude","Ruhefreude"]],["l30","Mit dem Rad einen Hügel hinunterrollen und den Wind spüren",["Geschwindigkeitsfreude","Freiheitsfreude"]],
   ["l31","Eine Stunde im Wald oder am Wasser sitzen",["Naturfreude","Ruhefreude"]],["l32","Mit Kind oder Enkel etwas zum ersten Mal erleben",["Vaterfreude","Familienfreude"]],
-  ["l33","Bei einer gemeinsamen Aktion mitmachen, bei der viele am selben Ziel arbeiten",["Feldfreude","Verbundenheitsfreude"]],["l34","Zehn Minuten eine Sache genau beobachten: eine Wolke, eine Ameise, das Wasser",["Beobachtungsfreude","Staunfreude"]]
+  ["l33","Bei einer gemeinsamen Aktion mitmachen, bei der viele am selben Ziel arbeiten",["Feldfreude","Verbundenheitsfreude"]],["l34","Zehn Minuten eine Sache genau beobachten: eine Wolke, eine Ameise, das Wasser",["Beobachtungsfreude","Staunfreude"]],
+  ["l35","Einen eigenen Track bauen, mit einer Musik-App oder mit KI",["Schöpferfreude","Musikfreude"]],["l36","Kalligraphie: ein einziges Wort ganz langsam und schön schreiben",["Schöpferfreude","Ruhefreude"]],
+  ["l37","Ein Origami falten, Schritt für Schritt",["Schöpferfreude","Geschafft-Freude"]],["l38","Ein Blumengesteck binden, mit dem, was draußen wächst",["Schöpferfreude","Naturfreude"]],
+  ["l39","Aus Treibholz etwas bauen, das vorher niemand gesehen hat",["Schöpferfreude","Gestaltungsfreude"]],["l40","Auf einem Instrument einfach spielen, ohne es zu können",["Schöpferfreude","Musikfreude"]],
+  ["l41","Mit Ton etwas formen, mit geschlossenen Augen",["Schöpferfreude","Spürfreude"]],["l42","Ein kurzes Gedicht über etwas Alltägliches schreiben",["Schöpferfreude","Beobachtungsfreude"]]
 ].map(([id,form,q])=>{ let nq=q.map(x=>Q_OLD[x]||x); if(id==="l25") nq=["Menschenbeobachtungsfreude"].concat(nq); if(id==="l22") nq=["Tierkontaktfreude"].concat(nq); return [id,form,[...new Set(nq)].slice(0,2)]; });
 function qChips(sel,act){ return `<div class="small muted" style="font-weight:600">Aus eurem Freude-Kurs 2013</div>${frChips(Q_KURS,sel,act)}<div class="small muted" style="font-weight:600">Weitere</div>${frChips(Q_MORE.concat(sel.filter(q=>!QUALITIES.includes(q))),sel,act)}${sel.filter(q=>Q_INFO[q]).map(q=>`<div class="soft small"><b>${esc(q)}:</b> ${esc(Q_INFO[q])}</div>`).join("")}`; }
 function baroChart(vals){
@@ -1255,7 +1268,8 @@ function themeLine(t){
 function screenErkDoors(){
   const T=ordThemes();
   return `${erkBar()}<h1>Worum geht es dir?</h1>
-    <button class="path" data-act="erk-start"><span class="k">Nach vorn schauen</span><span class="t">Etwas hält mich ab</span><span class="d">Ein Wunsch, und etwas bremst dich. Sieben Fragen zu Wunsch, Bremse und Erlaubnis.</span></button>
+    <button class="path" data-act="ein-start"><span class="k">Eine Einsicht</span><span class="t">Mir ist etwas klar geworden</span><span class="d">Ein Aha-Moment über dich oder dein Leben. Vier kurze Fragen, dann entscheidest du, was du damit tust.</span></button>
+    <button class="path" data-act="erk-start"><span class="k">Nach vorn schauen</span><span class="t">Etwas hält mich ab</span><span class="d">Ein Wunsch, und etwas bremst dich. Bis zu sieben Fragen zu Wunsch, Bremse und Erlaubnis. Was nicht passt, überspringst du.</span></button>
     <button class="path" data-act="ord-start"><span class="k">Zurück schauen</span><span class="t">Etwas Altes kommt hoch</span><span class="d">Eine alte Geschichte, die immer wieder anklopft. Einordnen, würdigen, Frieden finden.</span></button>
     <div style="display:flex;flex-direction:column;gap:8px">
       <div class="small muted" style="font-weight:600">Deine Themen</div>
@@ -1368,6 +1382,140 @@ function ordAction(a,b){
   else if(a==="ord-cancel-yes"){ S.ord=null; ui.ordConfirmCancel=false; save(); render(); }
 }
 
+/* ---------- Gewohnheiten loslassen (Etappe 7) ---------- */
+const HAB_MILES = [1,3,7,10,21,30,50,100,150,200,365];
+function dKey(d){ const x=d?new Date(d):new Date(); return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0"); }
+function dShift(n){ const x=new Date(); x.setDate(x.getDate()+n); return dKey(x); }
+function habS(){ if(!S.habits) S.habits=[]; return S.habits; }
+function habStats(h){
+  const days=h.days||{};
+  let streak=0; let k=0; if(days[dShift(0)]!=="ok") k=-1;
+  if(days[dShift(0)]==="no") streak=0; else { while(days[dShift(k)]==="ok"){ streak++; k--; } }
+  const keys=Object.keys(days).sort(); let best=0, run=0, prev=null;
+  keys.forEach(key=>{ if(days[key]==="ok"){ const cont= prev && (new Date(key)-new Date(prev))/864e5===1; run= cont? run+1 : 1; best=Math.max(best,run); prev=key; } else { run=0; prev=null; } });
+  const total=keys.filter(x=>days[x]==="ok").length;
+  return { streak, best:Math.max(best,streak), total };
+}
+function habDue(){
+  /* gibt die erste offene Frage zurück: gestern (falls offen und angelegt) oder heute ab 17 Uhr */
+  for(const h of habS()){
+    const created=dKey(h.created), y=dShift(-1), t=dShift(0);
+    if(created<=y && !h.days[y]) return { h, key:y, label:"Gestern" };
+    if(new Date().getHours()>=17 && !h.days[t]) return { h, key:t, label:"Heute" };
+  }
+  return null;
+}
+function habMark(id,key,val){
+  const h=habS().find(x=>x.id===id); if(!h) return;
+  h.days[key]=val; save();
+  if(val==="ok"){
+    const st=habStats(h);
+    if(key===dShift(0)||key===dShift(-1)){
+      const n=st.streak||1;
+      if(HAB_MILES.includes(n)){
+        addEntry({ area:"loslassen", title:"Gewohnheit: "+h.name, text:n===1?`Erster Tag ohne „${h.name}“.`:`🔥 ${n} Tage in Folge ohne „${h.name}“.\nLängste Serie: ${st.best} · insgesamt ${st.total} Tage`, meta:{ habit:h.id, streak:n } });
+        toast(n===1?"Der erste Tag! Steht im Journal.":`${n} Tage in Folge! Steht im Journal.`);
+      } else toast(`Geschafft! ${n} Tage in Folge.`);
+    } else toast("Eingetragen.");
+  } else toast("Morgen ist ein neuer erster Tag.");
+}
+function habCard(h){
+  const st=habStats(h), t=h.days[dShift(0)], y=h.days[dShift(-1)];
+  const next=HAB_MILES.find(m=>m>st.streak);
+  const ask=(key,label)=>`<div class="small" style="font-weight:600;margin-top:6px">${label} ohne „${esc(h.name)}“?</div>
+    <div class="row"><button class="btn sm" data-act="hab-ok" data-v="${h.id}" data-k="${key}">Geschafft</button><button class="btn sm quiet" data-act="hab-no" data-v="${h.id}" data-k="${key}">Nicht geschafft</button></div>`;
+  return `<div class="card" style="gap:6px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><h2 style="font-size:19px">${esc(h.name)}</h2>
+      <button class="linkbtn" style="min-height:32px" data-act="hab-del" data-v="${h.id}">${ui.habDel===h.id?"Wirklich entfernen?":"Entfernen"}</button></div>
+    <div style="font-family:var(--serif);font-size:30px;font-weight:600;color:var(--accent)">${st.streak>0?"🔥 ":""}${st.streak} ${st.streak===1?"Tag":"Tage"} in Folge</div>
+    <div class="small muted">Längste Serie: ${st.best} · insgesamt ${st.total} ${st.total===1?"Tag":"Tage"} ohne${next?` · nächster Meilenstein: ${next}`:""}</div>
+    ${y===undefined && dKey(h.created)<=dShift(-1) ? ask(dShift(-1),"Gestern") : ""}
+    ${t===undefined ? ask(dShift(0),"Heute") : `<div class="small" style="margin-top:4px">Heute: <b>${t==="ok"?"geschafft":"nicht geschafft"}</b> <button class="linkbtn" style="min-height:32px" data-act="hab-undo" data-v="${h.id}">ändern</button></div>`}
+    <details style="margin-top:4px"><summary class="small muted" style="cursor:pointer;min-height:32px;display:flex;align-items:center">Einen Satz dazu ins Journal</summary>
+      <textarea class="t" id="habNote-${h.id}" rows="2" style="margin-top:6px"></textarea>
+      <button class="btn sm line" style="margin-top:6px" data-act="hab-note" data-v="${h.id}">Ins Journal</button></details>
+  </div>`;
+}
+function screenHabits(){
+  const H=habS();
+  return `${losBar()}<div class="kicker">Gewohnheiten loslassen</div>
+    <h1>Ein Tag nach dem anderen</h1>
+    <div class="muted" style="line-height:1.45">Jeder Tag ohne eine Gewohnheit, die dir nicht guttut, ist ein kleiner Sieg. Meilensteine landen im Journal. Ein Rückfall ist kein Absturz, sondern ein Teil des Weges.</div>
+    ${H.map(habCard).join("")}
+    <div class="card"><div class="kicker">Neue Gewohnheit</div>
+      <input class="t" id="habNew" maxlength="50" autocomplete="off" placeholder="z. B. Abends aufs Handy schauen">
+      <div id="habErr" class="small" style="color:var(--danger);min-height:18px"></div>
+      <button class="btn sm" style="align-self:flex-start" data-act="hab-add">Hinzufügen</button></div>
+    <button class="linkbtn" data-act="hab-back">‹ Zurück zum Loslassen</button>`;
+}
+function habAction(a,b){
+  const v=b.dataset.v, k=b.dataset.k;
+  if(a==="hab-open"){ ui.losView="habits"; render(); window.scrollTo(0,0); }
+  else if(a==="hab-back"){ ui.losView=null; render(); window.scrollTo(0,0); }
+  else if(a==="hab-add"){ const n=document.getElementById("habNew").value.trim(); if(!n){ document.getElementById("habErr").textContent="Gib der Gewohnheit einen Namen."; return; } habS().push({ id:uid(), name:n, created:new Date().toISOString(), days:{} }); save(); render(); }
+  else if(a==="hab-ok"){ habMark(v,k,"ok"); render(); }
+  else if(a==="hab-no"){ habMark(v,k,"no"); render(); }
+  else if(a==="hab-undo"){ const h=habS().find(x=>x.id===v); if(h){ delete h.days[dShift(0)]; save(); } render(); }
+  else if(a==="hab-note"){ const h=habS().find(x=>x.id===v), f=document.getElementById("habNote-"+v); if(h&&f&&f.value.trim()){ const st=habStats(h); addEntry({ area:"loslassen", title:"Gewohnheit: "+h.name, text:f.value.trim()+`\n(${st.streak} Tage in Folge)`, meta:{ habit:h.id } }); toast("Im Journal festgehalten."); render(); } }
+  else if(a==="hab-del"){ if(ui.habDel===v){ S.habits=habS().filter(x=>x.id!==v); ui.habDel=null; save(); } else ui.habDel=v; render(); }
+}
+
+/* ---------- Erkennen, Tür 0: Mir ist etwas klar geworden ---------- */
+const EIN_ACT = [["festhalten","Einfach festhalten"],["beobachten","Weiter beobachten"],["loslassen","Loslassen"],["schritt","Einen kleinen Schritt gehen"]];
+function screenEin(){
+  const E=S.ein, s=E.step;
+  const prog=`<div style="display:flex;flex-direction:column;gap:8px"><div class="steps" aria-hidden="true" style="display:grid;grid-template-columns:repeat(4,1fr)">${[0,1,2,3].map(i=>`<i class="${i<=Math.min(s,3)?"on":""}"></i>`).join("")}</div><div class="small muted">Einsicht · Frage ${Math.min(s,3)+1} von 4</div></div>`;
+  const nav=(skip)=>`<div id="erkErr" class="small" style="color:var(--danger);min-height:18px"></div><button class="btn" data-act="ein-next">Weiter</button>${skip?`<button class="btn quiet" data-act="ein-skip">Überspringen</button>`:""}${s>0?`<button class="linkbtn" data-act="ein-back">‹ Zurück</button>`:`<button class="linkbtn" data-act="ein-cancel">Abbrechen</button>`}`;
+  const ta=(val,ph,rows=3)=>`<textarea class="t" id="erkIn" rows="${rows}" placeholder="${esc(ph)}">${esc(val||"")}</textarea>`;
+  if(s===0) return `${erkBar()}${prog}<h1>Was hast du erkannt?</h1>${ta(E.what,"Schreib es in deinen Worten auf.",4)}${nav(false)}`;
+  if(s===1) return `${erkBar()}${prog}<h1>Woran hast du es gemerkt?</h1><div class="muted">Was war der Auslöser, eine Begegnung, ein Gedanke, ein Gefühl?</div>${ta(E.trigger,"")}${nav(true)}`;
+  if(s===2) return `${erkBar()}${prog}<h1>Was bedeutet das für dich?</h1>${ta(E.meaning,"")}${nav(true)}`;
+  if(s===3) return `${erkBar()}${prog}<h1>Was möchtest du damit tun?</h1>
+    <div style="display:flex;flex-direction:column;gap:8px">${EIN_ACT.map(([k,l])=>`<button class="chip ${E.action===k?"on":""}" style="height:52px;border-radius:14px;font-size:16px" data-act="ein-act" data-v="${k}" aria-pressed="${E.action===k}">${l}</button>`).join("")}</div>
+    <div id="erkErr" class="small" style="color:var(--danger);min-height:18px"></div><button class="btn" data-act="ein-next">Weiter</button><button class="linkbtn" data-act="ein-back">‹ Zurück</button>`;
+  if(s===4) return `${erkBar()}<div class="kicker">Einsicht · Dein Schritt</div><h1>Welcher kleine Schritt passt dazu?</h1>
+    <input class="t" id="erkIn" maxlength="120" value="${esc(E.small||"")}" placeholder="Etwas, das du diese Woche machen kannst">
+    <label style="display:flex;gap:10px;align-items:center;min-height:44px;font-size:16px"><input type="checkbox" id="einAsk" ${E.ask!==false?"checked":""} style="width:22px;height:22px;accent-color:var(--accent)"> In drei Tagen sanft nachfragen</label>
+    <div id="erkErr" class="small" style="color:var(--danger);min-height:18px"></div><button class="btn" data-act="ein-next">Zum Abschluss</button><button class="linkbtn" data-act="ein-back">‹ Zurück</button>`;
+  const row=(k,v)=>v?`<div style="display:flex;flex-direction:column;gap:2px"><div class="kicker">${k}</div><div style="line-height:1.4">${esc(v)}</div></div>`:"";
+  return `${erkBar()}<div class="small muted">Einsicht · ${esc(shortDate(new Date()))}</div><h1>Das ist dir klar geworden</h1>
+    <div class="card" style="gap:12px">
+      <div style="font-family:var(--serif);font-size:19px;line-height:1.4">${esc(E.what)}</div>
+      ${row("Ausgelöst durch",E.trigger)}${row("Was es für mich bedeutet",E.meaning)}
+      ${row("Damit möchte ich",(EIN_ACT.find(x=>x[0]===E.action)||["",""])[1])}${row("Mein kleiner Schritt",E.small)}
+    </div>
+    <button class="btn" data-act="ein-save">${E.action==="loslassen"?"Ins Journal und zum Loslassen":"Ins Journal"}</button>
+    <button class="linkbtn" data-act="ein-back">‹ Noch etwas ändern</button>`;
+}
+function einAction(a,b){
+  const E=S.ein, f=document.getElementById("erkIn"), val=f?f.value.trim():"";
+  const err=m=>{ const e=document.getElementById("erkErr"); if(e) e.textContent=m; };
+  const keep=()=>{ if(!E) return; if(E.step===0&&f) E.what=val; if(E.step===1&&f) E.trigger=val; if(E.step===2&&f) E.meaning=val; if(E.step===4){ if(f) E.small=val; const c=document.getElementById("einAsk"); if(c) E.ask=c.checked; } };
+  if(a==="ein-start"){ S.ein={ begun:new Date().toISOString(), step:0, what:"", trigger:"", meaning:"", action:null, small:"", ask:true }; save(); render(); window.scrollTo(0,0); return; }
+  if(a==="ein-cancel"){ S.ein=null; save(); render(); return; }
+  if(a==="ein-act"){ E.action=b.dataset.v; save(); render(); return; }
+  if(a==="ein-back"){ keep(); E.step = E.step===5 ? (E.action==="schritt"?4:3) : Math.max(0,E.step-1); save(); render(); window.scrollTo(0,0); return; }
+  if(a==="ein-skip"){ keep(); E.step++; save(); render(); window.scrollTo(0,0); return; }
+  if(a==="ein-next"){
+    keep();
+    if(E.step===0 && !E.what) return err("Schreib kurz auf, was dir klar geworden ist.");
+    if(E.step===3){ if(!E.action) return err("Wähle, was du damit tun möchtest."); E.step = E.action==="schritt"?4:5; }
+    else if(E.step===4){ if(!E.small) return err("Schreib einen kleinen Schritt auf."); E.step=5; }
+    else E.step++;
+    save(); render(); window.scrollTo(0,0); return;
+  }
+  if(a==="ein-save"){
+    const L=[E.what]; if(E.trigger) L.push("Ausgelöst durch: "+E.trigger); if(E.meaning) L.push("Bedeutet für mich: "+E.meaning);
+    const act=(EIN_ACT.find(x=>x[0]===E.action)||["",""])[1]; L.push("Damit möchte ich: "+act); if(E.action==="schritt"&&E.small) L.push("Kleiner Schritt: "+E.small);
+    addEntry({ area:"erkennen", title:"Erkenntnis", text:L.join("\n"), meta:{ kind:"einsicht", action:E.action } });
+    if(E.action==="schritt" && E.small && E.ask) addCheckin({ area:"erkennen", text:E.small, inDays:3 });
+    if(E.action==="beobachten") addCheckin({ area:"erkennen", text:"Beobachten: "+E.what, inDays:7 });
+    const go=E.action==="loslassen", what=E.what; S.ein=null; save();
+    if(go){ ui.losSitPrefill=what.slice(0,80); toast("Festgehalten. Jetzt darf es sich lösen."); location.hash="#/bereich/loslassen"; }
+    else { toast("Im Journal festgehalten."); location.hash="#/journal"; }
+  }
+}
+
 /* ---------- Router ---------- */
 function render(){
   clearTimeout(breathTimer); breathTimer=null; clearInterval(losTick); losTick=null;
@@ -1388,7 +1536,7 @@ function render(){
   if(h==="#/bereich/loslassen") losAfterRender();
 }
 let lastRoute = "#/";
-window.addEventListener("hashchange", ()=>{ ui.confirmDel=null; ui.confirmWipe=false; ui.losBackfill=false; ui.losConfirmDiscard=false; ui.erkConfirmCancel=false; ui.ordConfirmCancel=false; ui.intView="map"; ui.frView="main"; render(); window.scrollTo(0,0); });
+window.addEventListener("hashchange", ()=>{ ui.confirmDel=null; ui.confirmWipe=false; ui.losBackfill=false; ui.losConfirmDiscard=false; ui.erkConfirmCancel=false; ui.ordConfirmCancel=false; ui.losView=null; ui.habDel=null; ui.intView="map"; ui.frView="main"; render(); window.scrollTo(0,0); });
 
 function startBreath(){
   const b=document.getElementById("breath"), t=document.getElementById("breathTxt");
@@ -1453,6 +1601,8 @@ app.addEventListener("click", e=>{
   else if(a.startsWith("los-")) losAction(a,b);
   else if(a.startsWith("erk-")) erkAction(a,b);
   else if(a.startsWith("ord-")) ordAction(a,b);
+  else if(a.startsWith("ein-")) einAction(a,b);
+  else if(a.startsWith("hab-")) habAction(a,b);
   else if(a.startsWith("int-")) intAction(a,b);
   else if(a.startsWith("fr-")) frAction(a,b);
   else if(a==="export") doExport();
