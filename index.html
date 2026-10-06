@@ -128,7 +128,7 @@ button.entry{font:inherit;color:inherit}
 "use strict";
 /* ---------- Daten ---------- */
 const KEY = "lebenskompass.v1";
-const VERSION = "Etappe 8";
+const VERSION = "Etappe 9";
 const DIRS = {
   erkennen:  { name:"Erkennen",  pos:"n", rot:0,   kicker:"Oben · Beginn", text:"Was hält dich ab? Oder: Was Altes kommt hoch und will eingeordnet werden?", cta:"Starten" },
   loslassen: { name:"Loslassen", pos:"e", rot:90,  kicker:"Rechts", text:"Stärke einschätzen, Gefühl benennen, im Körper beschreiben, dabeibleiben, bis es nachlässt.", cta:"Runde beginnen" },
@@ -379,7 +379,7 @@ function screenLos(){
   const L = S.los;
   if(ui.losView==="habits") return screenHabits();
   if(ui.losBackfill) return screenLosBackfill();
-  if(!L) return screenLosIntro();
+  if(!L) return ui.losView==="feel" ? screenLosIntro() : screenLosChoice();
   if(!ui.losResumeOk && (Date.now()-new Date(L.begun).getTime()) > 6*36e5){
     return `${losBar()}<h1>Angefangene Sitzung</h1>
       <div class="muted" style="line-height:1.5">Du hast am ${esc(new Date(L.begun).toLocaleDateString("de-DE"))} eine Sitzung begonnen${L.rounds.length?` und ${L.rounds.length} Runde${L.rounds.length>1?"n":""} geschafft`:""}.</div>
@@ -455,6 +455,26 @@ function screenLos(){
   return screenLosIntro();
 }
 
+/* Startseite Loslassen: Gefühl loslassen oder Gewohnheit quittieren */
+function habQuick(h){
+  const st=habStats(h), t=h.days[dShift(0)], y=h.days[dShift(-1)];
+  const openY = y===undefined && dKey(h.created)<=dShift(-1);
+  const key = openY ? dShift(-1) : (t===undefined ? dShift(0) : null);
+  const head=`<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><b style="font-size:17px">${esc(h.name)}</b><span class="small" style="font-weight:600;color:var(--accent);white-space:nowrap">${st.streak>0?"🔥 ":""}${st.streak} ${st.streak===1?"Tag":"Tage"}</span></div>`;
+  if(key) return `<div class="card" style="gap:6px">${head}
+    <div class="small" style="font-weight:600">${openY?"Gestern":"Heute"} ohne „${esc(h.name)}“ geschafft?</div>
+    <div class="row" style="flex-wrap:nowrap"><button class="btn sm" style="flex:1" data-act="hab-ok" data-v="${h.id}" data-k="${key}">Geschafft ✓</button><button class="btn sm quiet" style="flex:1" data-act="hab-no" data-v="${h.id}" data-k="${key}">Nicht geschafft</button></div></div>`;
+  return `<div class="card" style="gap:4px">${head}<div class="small muted">Heute: ${t==="ok"?"geschafft ✓":"nicht geschafft – morgen ist ein neuer erster Tag"} <button class="linkbtn" style="min-height:32px" data-act="hab-undo" data-v="${h.id}">ändern</button></div></div>`;
+}
+function screenLosChoice(){
+  const H=habS();
+  return `${losBar()}
+    <h1>Was möchtest du loslassen?</h1>
+    <button class="path hero" data-act="hab-feel"><span class="k">Geführt · in Runden</span><span class="t">Ein Gefühl loslassen</span><span class="d">Etwas hält dich fest? Benennen, im Körper spüren, dabeibleiben, bis es nachlässt.</span></button>
+    ${H.length?`<div class="kicker" style="margin-top:6px">Ein Tag nach dem anderen</div>${H.map(habQuick).join("")}
+      <button class="linkbtn" data-act="hab-open">Gewohnheiten verwalten · Verlauf · neue anlegen</button>`
+    :`<button class="path" data-act="hab-open"><span class="k">Ein Tag nach dem anderen</span><span class="t">Eine Gewohnheit loslassen</span><span class="d">Zähle die Tage ohne eine Gewohnheit, die dir nicht guttut.</span></button>`}`;
+}
 function screenLosIntro(){
   return `${losBar()}
     <h1>Komm kurz an.</h1>
@@ -466,7 +486,7 @@ function screenLosIntro(){
     <div class="soft small">In jeder Runde: Stärke einschätzen, Gefühl benennen, im Körper beschreiben, dabeibleiben, bis es nachlässt.</div>
     <button class="btn" data-act="los-start">Erste Runde beginnen</button>
     <button class="linkbtn" data-act="los-backfill">Eine Sitzung nachtragen</button>
-    <button class="path" data-act="hab-open"><span class="k">Ein Tag nach dem anderen</span><span class="t">Eine Gewohnheit loslassen</span><span class="d">${habS().length?habS().map(h=>esc(h.name)+": "+habStats(h).streak+" Tage in Folge").join(" · "):"Zähle die Tage ohne eine Gewohnheit, die dir nicht guttut."}</span></button>`;
+    ${S.los?"":`<button class="linkbtn" data-act="hab-back">‹ Zurück zur Auswahl</button>`}`;
 }
 
 function screenLosBackfill(){
@@ -750,7 +770,7 @@ function erkAction(a,b){
     const s=E.step; const prev = s===8?71 : s===71?7 : Math.max(1,s-1);
     erkGo(prev);
   }
-  else if(a==="erk-to-los"){ E.body=val(); save(); location.hash="#/bereich/loslassen"; }
+  else if(a==="erk-to-los"){ E.body=val(); save(); ui.losGoFeel=true; location.hash="#/bereich/loslassen"; }
   else if(a==="erk-next"){
     const s=E.step, v=val();
     if(s===1){ const o=document.getElementById("erkOther"); if(o) E.other=o.value.trim();
@@ -767,7 +787,7 @@ function erkAction(a,b){
       return erkGo(8); }
   }
   else if(a==="erk-save"){ erkSaveEntry(); toast("Im Journal festgehalten."); location.hash="#/journal"; }
-  else if(a==="erk-save-los"){ erkSaveEntry(); toast("Im Journal festgehalten."); location.hash="#/bereich/loslassen"; }
+  else if(a==="erk-save-los"){ erkSaveEntry(); toast("Im Journal festgehalten."); ui.losGoFeel=true; location.hash="#/bereich/loslassen"; }
   else if(a==="erk-cancel"){ ui.erkConfirmCancel=true; render(); }
   else if(a==="erk-cancel-no"){ ui.erkConfirmCancel=false; render(); }
   else if(a==="erk-cancel-yes"){ S.erk=null; save(); ui.erkConfirmCancel=false; ui.erkResumeOk=false; render(); }
@@ -1457,7 +1477,7 @@ function ordAction(a,b){
     O.step++; save(); render(); window.scrollTo(0,0);
   }
   else if(a==="ord-save"){ ordSave(); toast("Eingeordnet und im Journal festgehalten."); location.hash="#/journal"; }
-  else if(a==="ord-save-los"){ const n=ordSave(); ui.losSitPrefill=n; toast("Eingeordnet. Jetzt darf es sich lösen."); location.hash="#/bereich/loslassen"; }
+  else if(a==="ord-save-los"){ const n=ordSave(); ui.losSitPrefill=n; ui.losGoFeel=true; toast("Eingeordnet. Jetzt darf es sich lösen."); location.hash="#/bereich/loslassen"; }
   else if(a==="ord-cancel"){ ui.ordConfirmCancel=true; render(); }
   else if(a==="ord-cancel-no"){ ui.ordConfirmCancel=false; render(); }
   else if(a==="ord-cancel-yes"){ S.ord=null; ui.ordConfirmCancel=false; save(); render(); }
@@ -1531,7 +1551,8 @@ function screenHabits(){
 }
 function habAction(a,b){
   const v=b.dataset.v, k=b.dataset.k;
-  if(a==="hab-open"){ ui.losView="habits"; render(); window.scrollTo(0,0); }
+  if(a==="hab-feel"){ ui.losView="feel"; render(); window.scrollTo(0,0); }
+  else if(a==="hab-open"){ ui.losView="habits"; render(); window.scrollTo(0,0); }
   else if(a==="hab-back"){ ui.losView=null; render(); window.scrollTo(0,0); }
   else if(a==="hab-add"){ const n=document.getElementById("habNew").value.trim(); if(!n){ document.getElementById("habErr").textContent="Gib der Gewohnheit einen Namen."; return; } habS().push({ id:uid(), name:n, created:new Date().toISOString(), days:{} }); save(); render(); }
   else if(a==="hab-ok"){ habMark(v,k,"ok"); render(); }
@@ -1592,7 +1613,7 @@ function einAction(a,b){
     if(E.action==="schritt" && E.small && E.ask) addCheckin({ area:"erkennen", text:E.small, inDays:3 });
     if(E.action==="beobachten") addCheckin({ area:"erkennen", text:"Beobachten: "+E.what, inDays:7 });
     const go=E.action==="loslassen", what=E.what; S.ein=null; save();
-    if(go){ ui.losSitPrefill=what.slice(0,80); toast("Festgehalten. Jetzt darf es sich lösen."); location.hash="#/bereich/loslassen"; }
+    if(go){ ui.losSitPrefill=what.slice(0,80); ui.losGoFeel=true; toast("Festgehalten. Jetzt darf es sich lösen."); location.hash="#/bereich/loslassen"; }
     else { toast("Im Journal festgehalten."); location.hash="#/journal"; }
   }
 }
@@ -1617,7 +1638,7 @@ function render(){
   if(h==="#/bereich/loslassen") losAfterRender();
 }
 let lastRoute = "#/";
-window.addEventListener("hashchange", ()=>{ ui.confirmDel=null; ui.confirmWipe=false; ui.losBackfill=false; ui.losConfirmDiscard=false; ui.erkConfirmCancel=false; ui.ordConfirmCancel=false; ui.losView=null; ui.habDel=null; ui.intView="map"; ui.intPick=null; ui.frView="main"; render(); window.scrollTo(0,0); });
+window.addEventListener("hashchange", ()=>{ ui.confirmDel=null; ui.confirmWipe=false; ui.losBackfill=false; ui.losConfirmDiscard=false; ui.erkConfirmCancel=false; ui.ordConfirmCancel=false; ui.losView=ui.losGoFeel?"feel":null; ui.losGoFeel=false; ui.habDel=null; ui.intView="map"; ui.intPick=null; ui.frView="main"; render(); window.scrollTo(0,0); });
 
 function startBreath(){
   const b=document.getElementById("breath"), t=document.getElementById("breathTxt");
