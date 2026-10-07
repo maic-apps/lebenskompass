@@ -57,6 +57,7 @@ h2{font-family:var(--serif);font-weight:600;font-size:22px;line-height:1.2;margi
 .dir{padding:0 6px}
 .dir{position:absolute;height:48px;border-radius:24px;border:1px solid var(--accent);background:var(--card);color:var(--accent);font-size:16px;font-weight:600}
 .dir.on{background:var(--accent);color:var(--accent-ink)}
+.dir .dot{position:absolute;top:-3px;right:-3px;width:14px;height:14px;border-radius:7px;background:#E0703A;border:2px solid var(--bg)}
 .dir.n{left:125px;top:0;width:90px}.dir.e{left:248px;top:136px;width:92px}.dir.s{left:125px;top:272px;width:90px}.dir.w{left:0;top:136px;width:84px}
 .center{position:absolute;left:134px;top:124px;width:72px;height:72px;border-radius:36px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:14px;font-weight:600}
 .center.on{background:var(--ink);color:var(--bg)}
@@ -128,7 +129,7 @@ button.entry{font:inherit;color:inherit}
 "use strict";
 /* ---------- Daten ---------- */
 const KEY = "lebenskompass.v1";
-const VERSION = "Etappe 9.1";
+const VERSION = "Etappe 10";
 const DIRS = {
   erkennen:  { name:"Erkennen",  pos:"n", rot:0,   kicker:"Oben · Beginn", text:"Was hält dich ab? Oder: Was Altes kommt hoch und will eingeordnet werden?", cta:"Starten" },
   loslassen: { name:"Loslassen", pos:"e", rot:90,  kicker:"Rechts", text:"Ein Gefühl in Runden loslassen, oder abhaken, dass du heute ohne eine ungeliebte Gewohnheit ausgekommen bist.", cta:"Öffnen" },
@@ -207,37 +208,45 @@ const ROSE = `<svg width="180" height="180" viewBox="0 0 200 200" aria-hidden="t
 <polygon points="12,100 87,87 100,100" fill="var(--accent)"/><polygon points="12,100 87,113 100,100" fill="var(--accent-2)"/></svg>`;
 
 /* ---------- Bildschirme ---------- */
+/* Startseite: ruhig. Kompass, ein Satz, eine Erinnerung nur auf Wunsch. */
+function dueAreas(){
+  const set=new Set(S.checkins.filter(c=>!c.done && c.due<=Date.now()).map(c=>c.area));
+  if(habDue()) set.add("loslassen");
+  return set;
+}
+function goodMemories(){
+  const good=e=> e.area==="freude"
+    || (e.area==="interesse" && e.meta && (e.meta.more==="ja"||e.meta.more==="vielleicht"))
+    || (e.area==="loslassen" && e.meta && e.meta.streak)
+    || (e.title==="Kleiner Schritt geschafft");
+  const all=S.entries.filter(good), older=all.filter(e=>dayKey(e.date)!==dayKey(new Date()));
+  return older.length?older:all;
+}
 function screenStart(){
   const today = new Date().toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"});
-  const due = S.checkins.find(c=>!c.done && c.due<=Date.now());
   const backupDue = S.entries.length>0 && daysSince(S.lastBackup||S.created)>=30 && daysSince(S.backupSnooze)>=7;
-  const sel = ui.sel;
-  const info = sel==="journal"
-    ? { kicker:"Mitte", name:"Journal", text:"Alle Einträge aus den vier Richtungen, nach Tagen sortiert.", cta:"Journal öffnen" }
-    : sel ? DIRS[sel] : null;
-  const pool = S.entries.filter(e=>dayKey(e.date)!==dayKey(new Date()));
-  const mem = (pool.length?pool:S.entries);
-  const m = mem.length ? mem[Math.floor(Math.random()*mem.length)] : null;
-
+  const due=dueAreas();
+  const m = ui.memId ? S.entries.find(e=>e.id===ui.memId) : null;
   return `
   <div class="bar">
     <div><div class="muted small">${esc(today)}</div></div>
     <button class="pill" data-act="go" data-to="#/pause">Pause</button>
   </div>
   <h1>Wohin geht's heute?</h1>
-  ${due ? `<div class="card">
-      <div class="kicker">Sanfte Nachfrage · ${esc(areaName(due.area))}</div>
-      <h2>${due.area==="interesse"?"Wie war deine Expedition?":"Wie war dein kleiner Schritt?"}</h2>
-      <div class="muted">„${esc(due.text)}“</div>
-      <div class="row" style="margin-top:6px">
-        <button class="btn sm" data-act="ci-done" data-id="${due.id}">Hab ich gemacht</button>
-        <button class="btn sm quiet" data-act="ci-later" data-id="${due.id}">Noch nicht</button>
-        <button class="btn sm quiet" data-act="ci-drop" data-id="${due.id}">Nicht mehr wichtig</button>
-      </div></div>` : ""}
-  ${(()=>{ const hd=habDue(); if(!hd) return ""; const st=habStats(hd.h);
-    return `<div class="card"><div class="kicker">Gewohnheit · ${st.streak} ${st.streak===1?"Tag":"Tage"} in Folge</div>
-      <h2>${hd.label} ohne „${esc(hd.h.name)}“?</h2>
-      <div class="row" style="margin-top:6px"><button class="btn sm" data-act="hab-ok" data-v="${hd.h.id}" data-k="${hd.key}">Geschafft</button><button class="btn sm quiet" data-act="hab-no" data-v="${hd.h.id}" data-k="${hd.key}">Nicht geschafft</button></div></div>`; })()}
+  <div class="compass">
+    ${ROSE}
+    ${ORDER.map(k=>`<button class="dir ${DIRS[k].pos}" data-act="go" data-to="#/bereich/${k}" aria-label="${DIRS[k].name}${due.has(k)?", hier wartet etwas":""}">${DIRS[k].name}${due.has(k)?`<span class="dot" aria-hidden="true"></span>`:""}</button>`).join("")}
+    <button class="center" data-act="go" data-to="#/journal" aria-label="Journal">Journal</button>
+  </div>
+  <div class="muted" style="text-align:center;line-height:1.45">Tippe auf eine Richtung, oder in die Mitte für dein Journal.${due.size?`<br><span class="small">Ein Punkt zeigt, wo etwas auf dich wartet.</span>`:""}</div>
+  ${m ? `<div style="display:flex;flex-direction:column;gap:8px">
+      <div class="entry">${icon(m.area)}<div class="body">
+        <div class="kicker">${esc(entryKicker(m, shortDate(m.date)))}</div>
+        ${m.title?`<div class="title">${esc(m.title)}</div>`:""}
+        <div class="text">${esc(m.text)}</div></div></div>
+      <div class="row" style="justify-content:center"><button class="linkbtn" data-act="mem-show">Eine andere</button><button class="linkbtn" data-act="mem-hide">Ausblenden</button></div></div>`
+    : ui.memNone ? `<div class="soft" style="text-align:center">Noch keine schönen Erinnerungen. Halte bei Freude einen Moment fest, dann wartet er hier auf dich.</div>`
+    : `<button class="btn line" style="align-self:center" data-act="mem-show">Eine schöne Erinnerung zeigen</button>`}
   ${backupDue ? `<div class="card">
       <div class="kicker">Datensicherung</div>
       <div>Dein letzter Stand ist über einen Monat alt. Magst du kurz sichern?</div>
@@ -245,31 +254,20 @@ function screenStart(){
         <button class="btn sm" data-act="export">Jetzt sichern</button>
         <button class="btn sm quiet" data-act="snooze">Später</button>
       </div></div>` : ""}
-  <div class="compass">
-    ${ROSE}
-    ${ORDER.map(k=>`<button class="dir ${DIRS[k].pos} ${sel===k?"on":""}" data-act="sel" data-k="${k}" aria-pressed="${sel===k}">${DIRS[k].name}</button>`).join("")}
-    <button class="center ${sel==="journal"?"on":""}" data-act="sel" data-k="journal" aria-pressed="${sel==="journal"}" aria-label="Journal">Journal</button>
-  </div>
-  <div class="card" style="min-height:150px">
-    ${info ? `
-      <div class="kicker">${esc(info.kicker)}</div>
-      <h2>${esc(info.name)}</h2>
-      <div class="muted" style="line-height:1.45">${esc(info.text)}</div>
-      <button class="btn sm" style="align-self:flex-start;margin-top:8px" data-act="go" data-to="${sel==="journal"?"#/journal":"#/bereich/"+sel}">${esc(info.cta)}</button>`
-    : `<div class="kicker">Lebenskompass</div><h2>Tippe auf eine Richtung</h2>
-       <div class="muted">Oder in die Mitte, um dein Journal zu lesen.</div>`}
-  </div>
-  <div style="display:flex;flex-direction:column;gap:8px">
-    <div class="small muted" style="font-weight:600">Eine Erinnerung für dich</div>
-    ${m ? `<div class="entry">${icon(m.area)}<div class="body">
-        <div class="kicker">${esc(entryKicker(m, shortDate(m.date)))}</div>
-        ${m.title?`<div class="title">${esc(m.title)}</div>`:""}
-        <div class="text">${esc(m.text)}</div></div></div>`
-      : `<div class="soft">Hier erscheint bald eine Erinnerung aus deinem Journal.</div>`}
-  </div>
   <div style="text-align:center;margin-top:auto"><button class="back" style="margin:0 auto" data-act="go" data-to="#/mehr">Sichern &amp; Einstellungen</button></div>`;
 }
-
+/* Offene Nachfragen eines Bereichs, oben im Bereich */
+function ciCards(area){
+  return S.checkins.filter(c=>!c.done && c.due<=Date.now() && c.area===area).map(due=>`<div class="card">
+      <div class="kicker">Sanfte Nachfrage</div>
+      <h2>Wie war dein kleiner Schritt?</h2>
+      <div class="muted">„${esc(due.text)}“</div>
+      <div class="row" style="margin-top:6px">
+        <button class="btn sm" data-act="ci-done" data-id="${due.id}">Hab ich gemacht</button>
+        <button class="btn sm quiet" data-act="ci-later" data-id="${due.id}">Noch nicht</button>
+        <button class="btn sm quiet" data-act="ci-drop" data-id="${due.id}">Nicht mehr wichtig</button>
+      </div></div>`).join("");
+}
 function screenJournal(){
   const f = ui.filter;
   const list = S.entries.filter(e=>f==="alle" || (f==="liebe" ? !!(e.meta&&e.meta.love&&e.meta.love.length) : e.area===f)).sort((a,b)=>b.date.localeCompare(a.date));
@@ -1369,6 +1367,7 @@ function themeLine(t){
 function screenErkDoors(){
   const T=ordThemes();
   return `${erkBar()}<h1>Worum geht es dir?</h1>
+    ${ciCards("erkennen")}
     <button class="path" data-act="ein-start"><span class="k">Eine Einsicht</span><span class="t">Mir ist etwas klar geworden</span><span class="d">Ein Aha-Moment über dich oder dein Leben. Vier kurze Fragen, dann entscheidest du, was du damit tust.</span></button>
     <button class="path" data-act="erk-start"><span class="k">Nach vorn schauen</span><span class="t">Etwas hält mich ab</span><span class="d">Ein Wunsch, und etwas bremst dich. Bis zu sieben Fragen zu Wunsch, Bremse und Erlaubnis. Was nicht passt, überspringst du.</span></button>
     <button class="path" data-act="ord-start"><span class="k">Zurück schauen</span><span class="t">Etwas Altes kommt hoch</span><span class="d">Eine alte Geschichte, die immer wieder anklopft. Einordnen, würdigen, Frieden finden.</span></button>
@@ -1638,7 +1637,7 @@ function render(){
   if(h==="#/bereich/loslassen") losAfterRender();
 }
 let lastRoute = "#/";
-window.addEventListener("hashchange", ()=>{ ui.confirmDel=null; ui.confirmWipe=false; ui.losBackfill=false; ui.losConfirmDiscard=false; ui.erkConfirmCancel=false; ui.ordConfirmCancel=false; ui.losView=ui.losGoFeel?"feel":null; ui.losGoFeel=false; ui.habDel=null; ui.intView="map"; ui.intPick=null; ui.frView="main"; render(); window.scrollTo(0,0); });
+window.addEventListener("hashchange", ()=>{ ui.confirmDel=null; ui.confirmWipe=false; ui.losBackfill=false; ui.losConfirmDiscard=false; ui.erkConfirmCancel=false; ui.ordConfirmCancel=false; ui.losView=ui.losGoFeel?"feel":null; ui.losGoFeel=false; ui.habDel=null; ui.intView="map"; ui.intPick=null; ui.memId=null; ui.memNone=false; ui.frView="main"; render(); window.scrollTo(0,0); });
 
 function startBreath(){
   const b=document.getElementById("breath"), t=document.getElementById("breathTxt");
@@ -1680,6 +1679,8 @@ app.addEventListener("click", e=>{
   const a=b.dataset.act, id=b.dataset.id;
   if(a==="go"){ location.hash=b.dataset.to; }
   else if(a==="back"){ if(history.length>1) history.back(); else location.hash="#/"; }
+  else if(a==="mem-show"){ const p=goodMemories().filter(e=>e.id!==ui.memId); const pick=p.length?p[Math.floor(Math.random()*p.length)]:(ui.memId?S.entries.find(e=>e.id===ui.memId):null); ui.memId=pick?pick.id:null; ui.memNone=!pick; render(); }
+  else if(a==="mem-hide"){ ui.memId=null; ui.memNone=false; render(); }
   else if(a==="sel"){ ui.sel = ui.sel===b.dataset.k ? null : b.dataset.k; render(); }
   else if(a==="filter"){ ui.filter=b.dataset.k; ui.confirmDel=null; render(); }
   else if(a==="del"){
