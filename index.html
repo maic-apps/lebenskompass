@@ -129,7 +129,7 @@ button.entry{font:inherit;color:inherit}
 "use strict";
 /* ---------- Daten ---------- */
 const KEY = "lebenskompass.v1";
-const VERSION = "Etappe 10";
+const VERSION = "Etappe 11";
 const DIRS = {
   erkennen:  { name:"Erkennen",  pos:"n", rot:0,   kicker:"Oben · Beginn", text:"Was hält dich ab? Oder: Was Altes kommt hoch und will eingeordnet werden?", cta:"Starten" },
   loslassen: { name:"Loslassen", pos:"e", rot:90,  kicker:"Rechts", text:"Ein Gefühl in Runden loslassen, oder abhaken, dass du heute ohne eine ungeliebte Gewohnheit ausgekommen bist.", cta:"Öffnen" },
@@ -377,6 +377,7 @@ function screenLos(){
   const L = S.los;
   if(ui.losView==="habits") return screenHabits();
   if(ui.losBackfill) return screenLosBackfill();
+  if(!L && S.tw && ui.losView==="work") return screenTw();
   if(!L) return ui.losView==="feel" ? screenLosIntro() : screenLosChoice();
   if(!ui.losResumeOk && (Date.now()-new Date(L.begun).getTime()) > 6*36e5){
     return `${losBar()}<h1>Angefangene Sitzung</h1>
@@ -465,13 +466,91 @@ function habQuick(h){
   return `<div class="card" style="gap:4px">${head}<div class="small muted">Heute: ${t==="ok"?"geschafft ✓":"nicht geschafft – morgen ist ein neuer erster Tag"} <button class="linkbtn" style="min-height:32px" data-act="hab-undo" data-v="${h.id}">ändern</button></div></div>`;
 }
 function screenLosChoice(){
-  const H=habS();
+  const H=habS(), open=H.filter(h=>{ const y=h.days[dShift(-1)]; return (y===undefined && dKey(h.created)<=dShift(-1)) || h.days[dShift(0)]===undefined; });
   return `${losBar()}
     <h1>Was möchtest du loslassen?</h1>
-    <button class="path hero" data-act="hab-feel"><span class="k">Geführt · in Runden</span><span class="t">Ein Gefühl loslassen</span><span class="d">Etwas hält dich fest? Benennen, im Körper spüren, dabeibleiben, bis es nachlässt.</span></button>
-    ${H.length?`<div class="kicker" style="margin-top:6px">Ein Tag nach dem anderen</div>${H.map(habQuick).join("")}
-      <button class="linkbtn" data-act="hab-open">Gewohnheiten verwalten · Verlauf · neue anlegen</button>`
-    :`<button class="path" data-act="hab-open"><span class="k">Ein Tag nach dem anderen</span><span class="t">Eine Gewohnheit loslassen</span><span class="d">Zähle die Tage ohne eine Gewohnheit, die dir nicht guttut.</span></button>`}`;
+    ${open.map(habQuick).join("")}
+    <button class="path" data-act="hab-feel"><span class="k">Über den Körper</span><span class="t">Ein Gefühl loslassen</span><span class="d">Etwas hält dich fest? Benennen, im Körper spüren, dabeibleiben, bis es nachlässt. In Runden.</span></button>
+    <button class="path" data-act="tw-start"><span class="k">Über das Prüfen</span><span class="t">${S.tw?"Einen Gedanken loslassen (fortsetzen)":"Einen Gedanken loslassen"}</span><span class="d">${S.tw&&S.tw.thought?"„"+esc(S.tw.thought)+"“":"Ein Satz, der dich nicht loslässt? Vier Fragen und drei Umkehrungen, nach Byron Katies „The Work“."}</span></button>
+    <button class="path" data-act="hab-open"><span class="k">Tag für Tag</span><span class="t">Eine Gewohnheit loslassen</span><span class="d">${H.length?H.map(h=>{ const n=habStats(h).streak; return esc(h.name)+": "+(n>0?"🔥 ":"")+n+(n===1?" Tag":" Tage"); }).join(" · "):"Zähle die Tage ohne eine Gewohnheit, die dir nicht guttut."}</span></button>`;
+}
+/* ---------- Einen Gedanken loslassen (The Work) ---------- */
+const TW_STEPS=7;
+function twField(id,val,ph,rows=3){ return `<textarea class="t" id="${id}" rows="${rows}" placeholder="${esc(ph)}">${esc(val||"")}</textarea>`; }
+function twHead(n){ return `${losBar()}<div class="steps" aria-hidden="true" style="display:grid;grid-template-columns:repeat(${TW_STEPS},1fr)">${Array.from({length:TW_STEPS},(_,i)=>`<i class="${i<n?"on":""}"></i>`).join("")}</div><div class="kicker">Einen Gedanken loslassen · ${n} von ${TW_STEPS}</div>`; }
+function twQuote(W){ return `<div class="soft" style="font-family:var(--serif);font-size:19px;color:var(--ink)">„${esc(W.thought)}“</div>`; }
+function twFoot(){ return `<div class="row" style="justify-content:space-between">${S.tw.step>0?`<button class="linkbtn" data-act="tw-back">‹ Zurück</button>`:"<span></span>"}<button class="linkbtn" data-act="tw-drop">${ui.twDrop?"Wirklich verwerfen?":"Verwerfen"}</button></div>`; }
+function screenTw(){
+  const W=S.tw, st=W.step;
+  if(st===0) return `${twHead(1)}<h1>Welcher Gedanke lässt dich nicht los?</h1>
+    <div class="muted" style="line-height:1.45">Ein einfacher, konkreter Satz. Ruhig ehrlich und auch kleinlich, so wie er in dir klingt.</div>
+    ${twField("twIn",W.thought,"z. B. Er sollte sich bei mir melden.",2)}
+    <div id="twErr" class="small" style="color:var(--danger);min-height:18px"></div>
+    <button class="btn" data-act="tw-next">Weiter</button>${twFoot()}`;
+  if(st===1||st===2){
+    const q=st===1?"Ist das wahr?":"Kannst du absolut sicher wissen, dass das wahr ist?", k=st===1?"a1":"a2";
+    return `${twHead(st+1)}<h1>${q}</h1>${twQuote(W)}
+      <div class="muted small">Nur Ja oder Nein. Spür kurz hin, bevor du antwortest.</div>
+      <div class="row" style="flex-wrap:nowrap"><button class="btn ${W[k]==="ja"?"":"line"}" style="flex:1" data-act="tw-yn" data-v="ja">Ja</button><button class="btn ${W[k]==="nein"?"":"line"}" style="flex:1" data-act="tw-yn" data-v="nein">Nein</button></div>${twFoot()}`;
+  }
+  if(st===3) return `${twHead(4)}<h1>Wie reagierst du, wenn du diesen Gedanken glaubst?</h1>${twQuote(W)}
+    <div class="muted small" style="line-height:1.45">Wie fühlst du dich? Wo spürst du es im Körper? Wie behandelst du den anderen, und wie dich selbst? Was tust du dann, und was lässt du?</div>
+    ${twField("twIn",W.a3,"Lass dir Zeit.",5)}
+    <button class="btn" data-act="tw-next">Weiter</button>${twFoot()}`;
+  if(st===4) return `${twHead(5)}<h1>Wer wärst du ohne diesen Gedanken?</h1>${twQuote(W)}
+    <div class="muted small" style="line-height:1.45">Stell dir vor, du könntest ihn gar nicht denken, in genau derselben Situation. Wie fühlst du dich dann? Was wäre anders?</div>
+    ${twField("twIn",W.a4,"Ohne diesen Gedanken wäre ich …",5)}
+    <button class="btn" data-act="tw-next">Weiter</button>${twFoot()}`;
+  if(st===5){
+    const T=W.turns||{};
+    const box=(k,label,hint)=>`<div class="card" style="gap:6px"><div class="kicker">${label}</div><div class="small muted" style="line-height:1.4">${hint}</div>
+      <input class="t" id="tw-${k}" maxlength="140" autocomplete="off" value="${esc((T[k]||{}).s||"")}" placeholder="Dein umgekehrter Satz">
+      <textarea class="t" id="tw-${k}-ex" rows="2" placeholder="Warum könnte das genauso wahr sein? Ein, zwei Beispiele.">${esc((T[k]||{}).ex||"")}</textarea></div>`;
+    return `${twHead(6)}<h1>Dreh den Gedanken um</h1>${twQuote(W)}
+      <div class="muted small" style="line-height:1.45">Es geht nicht um Schuld, sondern darum, wieder handlungsfähig zu werden. Nimm nur die Umkehrungen, die für dich Sinn ergeben.</div>
+      ${box("self","Zu dir selbst","Setz dich selbst ein. Aus „Er sollte sich bei mir melden“ wird „Ich sollte mich bei mir melden“.")}
+      ${box("other","Zum anderen","Tausch die Rollen. „Ich sollte mich bei ihm melden.“")}
+      ${box("opp","Ins Gegenteil","„Er sollte sich nicht bei mir melden.“ Gibt es Gründe dafür?")}
+      <button class="btn" data-act="tw-next">Weiter</button>${twFoot()}`;
+  }
+  return `${twHead(7)}<h1>Was nimmst du mit?</h1>${twQuote(W)}
+    <div class="muted small" style="line-height:1.45">Ein Satz reicht. Vielleicht auch ein kleiner Schritt, der jetzt leichter fällt.</div>
+    ${twField("twIn",W.take,"",3)}
+    <button class="btn" data-act="tw-save">Ins Journal</button>${twFoot()}`;
+}
+function twKeep(){
+  const W=S.tw; if(!W) return;
+  const f=document.getElementById("twIn");
+  if(f){ const k={0:"thought",3:"a3",4:"a4",6:"take"}[W.step]; if(k) W[k]=f.value.trim(); }
+  if(W.step===5){ W.turns=W.turns||{}; ["self","other","opp"].forEach(k=>{ const a=document.getElementById("tw-"+k), b=document.getElementById("tw-"+k+"-ex"); if(a) W.turns[k]={ s:a.value.trim(), ex:b?b.value.trim():"" }; }); }
+}
+function twAction(a,b){
+  const v=b.dataset.v;
+  if(a==="tw-start"){ if(!S.tw) S.tw={ step:0, thought:"", date:new Date().toISOString() }; ui.twDrop=false; ui.losView="work"; save(); render(); window.scrollTo(0,0); return; }
+  const W=S.tw; if(!W) return;
+  if(a==="tw-drop"){ if(ui.twDrop){ S.tw=null; ui.twDrop=false; ui.losView=null; save(); render(); window.scrollTo(0,0); } else { ui.twDrop=true; render(); } return; }
+  ui.twDrop=false;
+  if(a==="tw-back"){ twKeep(); W.step=Math.max(0,W.step-1); save(); render(); window.scrollTo(0,0); }
+  else if(a==="tw-next"){
+    twKeep();
+    if(W.step===0 && !W.thought){ document.getElementById("twErr").textContent="Schreib den Gedanken in einem Satz auf."; return; }
+    W.step++; save(); render(); window.scrollTo(0,0);
+  }
+  else if(a==="tw-yn"){ W[W.step===1?"a1":"a2"]=v; W.step++; save(); render(); window.scrollTo(0,0); }
+  else if(a==="tw-save"){
+    twKeep();
+    const L=["Gedanke: „"+W.thought+"“"];
+    if(W.a1) L.push("Ist das wahr? "+(W.a1==="ja"?"Ja":"Nein"));
+    if(W.a2) L.push("Absolut sicher? "+(W.a2==="ja"?"Ja":"Nein"));
+    if(W.a3) L.push("Wenn ich ihn glaube: "+W.a3);
+    if(W.a4) L.push("Ohne den Gedanken: "+W.a4);
+    const T=W.turns||{}, lab={self:"Zu mir selbst",other:"Zum anderen",opp:"Ins Gegenteil"};
+    ["self","other","opp"].forEach(k=>{ if(T[k]&&T[k].s) L.push(lab[k]+": „"+T[k].s+"“"+(T[k].ex?" – "+T[k].ex:"")); });
+    if(W.take) L.push("Was ich mitnehme: "+W.take);
+    addEntry({ area:"loslassen", title:"Gedanke geprüft", text:L.join("\n"), meta:{ work:true } });
+    S.twDone=(S.twDone||0)+1; S.tw=null; ui.losView=null; save();
+    toast("Im Journal festgehalten. Ein Gedanke weniger, der dich festhält."); render(); window.scrollTo(0,0);
+  }
 }
 function screenLosIntro(){
   return `${losBar()}
@@ -640,8 +719,8 @@ function erkOptions(E){ return E.options.split(/\n|;/).map(s=>s.replace(/^[-•*
 function screenErk(){
   const E=S.erk;
   if(S.ein) return screenEin();
-  if(S.ord) return screenOrd();
-  if(!E) return screenErkDoors();
+  if(S.ord){ ui.erkThemes=false; return screenOrd(); }
+  if(!E) return ui.erkThemes ? screenErkThemes() : screenErkDoors();
   if(false){
     return `${erkBar()}<h1>Was hält dich ab?</h1>
       <div class="muted" style="line-height:1.5">Sieben Fragen in drei Stufen: dein Wunsch, die Bremse und die Erlaubnis. Nimm dir etwa zehn Minuten. Es gibt kein Richtig oder Falsch.</div>
@@ -755,6 +834,8 @@ function erkSaveEntry(){
 function erkAction(a,b){
   const E=S.erk;
   const val=()=>{ const f=document.getElementById("erkIn"); return f?f.value.trim():""; };
+  if(a==="erk-themes"){ ui.erkThemes=true; render(); window.scrollTo(0,0); return; }
+  if(a==="erk-themes-back"){ ui.erkThemes=false; render(); window.scrollTo(0,0); return; }
   if(a==="erk-start"){ S.erk=erkNew(); ui.erkResumeOk=true; save(); render(); }
   else if(a==="erk-resume"){ ui.erkResumeOk=true; render(); }
   else if(a==="erk-area"){ const v=b.dataset.v; const o=document.getElementById("erkOther"); if(o) E.other=o.value; E.areas=E.areas.includes(v)?E.areas.filter(x=>x!==v):E.areas.concat([v]); save(); render(); }
@@ -1371,15 +1452,19 @@ function screenErkDoors(){
     <button class="path" data-act="ein-start"><span class="k">Eine Einsicht</span><span class="t">Mir ist etwas klar geworden</span><span class="d">Ein Aha-Moment über dich oder dein Leben. Vier kurze Fragen, dann entscheidest du, was du damit tust.</span></button>
     <button class="path" data-act="erk-start"><span class="k">Nach vorn schauen</span><span class="t">Etwas hält mich ab</span><span class="d">Ein Wunsch, und etwas bremst dich. Bis zu sieben Fragen zu Wunsch, Bremse und Erlaubnis. Was nicht passt, überspringst du.</span></button>
     <button class="path" data-act="ord-start"><span class="k">Zurück schauen</span><span class="t">Etwas Altes kommt hoch</span><span class="d">Eine alte Geschichte, die immer wieder anklopft. Einordnen, würdigen, Frieden finden.</span></button>
-    <div style="display:flex;flex-direction:column;gap:8px">
-      <div class="small muted" style="font-weight:600">Deine Themen</div>
-      ${T.length ? T.slice().sort((a,b)=>(b.last||"").localeCompare(a.last||"")).map(t=>`<button class="entry" style="text-align:left;width:100%;cursor:pointer" data-act="ord-start" data-v="${t.id}">
+    <button class="path" data-act="erk-themes"><span class="k">Bewusst hinschauen</span><span class="t">Meine alten Themen</span><span class="d">${T.length?`${T.length===1?"1 Thema mit seinem Verlauf.":T.length+" Themen mit ihrem Verlauf."} Nur, wenn du gerade magst.`:"Hier sammeln sich die Themen, die du einordnest."}</span></button>`;
+}
+function screenErkThemes(){
+  const T=ordThemes();
+  return `${erkBar()}<h1>Meine alten Themen</h1>
+    <div class="muted" style="line-height:1.45;margin-top:-8px">Mit der Zeit siehst du, wie sie leiser werden. Tippe auf ein Thema, um es noch einmal einzuordnen.</div>
+    ${T.length ? T.slice().sort((a,b)=>(b.last||"").localeCompare(a.last||"")).map(t=>`<button class="entry" style="text-align:left;width:100%;cursor:pointer" data-act="ord-start" data-v="${t.id}">
           <div class="body"><div class="title">${esc(t.name)}</div>
           ${t.feelings&&t.feelings.length?`<div class="kicker">${esc(t.feelings.join(", "))}</div>`:""}
           <div class="small muted">${esc(themeLine(t))}</div>
           ${t.peace?`<div class="small" style="line-height:1.4;font-family:var(--serif)">„${esc(t.peace)}“</div>`:""}</div></button>`).join("")
-        : `<div class="soft small">Hier sammeln sich alte Themen, die du einordnest. Mit der Zeit siehst du, wie sie leiser werden.</div>`}
-    </div>`;
+      : `<div class="soft small">Noch keine Themen. Wenn du durch die Tür „Etwas Altes kommt hoch“ gehst, sammeln sie sich hier.</div>`}
+    <button class="linkbtn" data-act="erk-themes-back">‹ Zurück zu den Türen</button>`;
 }
 function screenOrd(){
   const O=S.ord, s=O.step, T=ordThemes();
@@ -1637,7 +1722,7 @@ function render(){
   if(h==="#/bereich/loslassen") losAfterRender();
 }
 let lastRoute = "#/";
-window.addEventListener("hashchange", ()=>{ ui.confirmDel=null; ui.confirmWipe=false; ui.losBackfill=false; ui.losConfirmDiscard=false; ui.erkConfirmCancel=false; ui.ordConfirmCancel=false; ui.losView=ui.losGoFeel?"feel":null; ui.losGoFeel=false; ui.habDel=null; ui.intView="map"; ui.intPick=null; ui.memId=null; ui.memNone=false; ui.frView="main"; render(); window.scrollTo(0,0); });
+window.addEventListener("hashchange", ()=>{ ui.confirmDel=null; ui.confirmWipe=false; ui.losBackfill=false; ui.losConfirmDiscard=false; ui.erkConfirmCancel=false; ui.ordConfirmCancel=false; ui.losView=ui.losGoFeel?"feel":null; ui.losGoFeel=false; ui.habDel=null; ui.intView="map"; ui.intPick=null; ui.memId=null; ui.memNone=false; ui.erkThemes=false; ui.frView="main"; render(); window.scrollTo(0,0); });
 
 function startBreath(){
   const b=document.getElementById("breath"), t=document.getElementById("breathTxt");
@@ -1706,6 +1791,7 @@ app.addEventListener("click", e=>{
   else if(a.startsWith("ord-")) ordAction(a,b);
   else if(a.startsWith("ein-")) einAction(a,b);
   else if(a.startsWith("hab-")) habAction(a,b);
+  else if(a.startsWith("tw-")) twAction(a,b);
   else if(a.startsWith("int-")) intAction(a,b);
   else if(a.startsWith("fr-")) frAction(a,b);
   else if(a==="export") doExport();
