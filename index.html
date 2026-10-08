@@ -130,7 +130,7 @@ button.entry{font:inherit;color:inherit}
 "use strict";
 /* ---------- Daten ---------- */
 const KEY = "lebenskompass.v1";
-const VERSION = "Etappe 12";
+const VERSION = "Etappe 12.2";
 const DIRS = {
   erkennen:  { name:"Erkennen",  pos:"n", rot:0,   kicker:"Oben · Beginn", text:"Was hält dich ab? Oder: Was Altes kommt hoch und will eingeordnet werden?", cta:"Starten" },
   loslassen: { name:"Loslassen", pos:"e", rot:90,  kicker:"Rechts", text:"Ein Gefühl in Runden loslassen, oder abhaken, dass du heute ohne eine ungeliebte Gewohnheit ausgekommen bist.", cta:"Öffnen" },
@@ -213,6 +213,7 @@ const ROSE = `<svg width="180" height="180" viewBox="0 0 200 200" aria-hidden="t
 function dueAreas(){
   const set=new Set(S.checkins.filter(c=>!c.done && c.due<=Date.now()).map(c=>c.area));
   if(habDue()) set.add("loslassen");
+  const B=(S.fr&&S.fr.baro)||[]; if(B.length && daysSince(B[B.length-1].date)>=7) set.add("freude");
   return set;
 }
 function goodMemories(){
@@ -1267,17 +1268,29 @@ function screenFr(){
   if(v==="essenz") return screenFrEssenz();
   if(v==="lib") return screenFrLib();
   if(v==="try") return screenFrTry();
-  const counts={}; S.entries.forEach(e=>{ (e.meta&&e.meta.love||[]).forEach(k=>counts[k]=(counts[k]||0)+1); });
-  const tot=Object.values(counts).reduce((a,b)=>a+b,0), mx=Math.max(1,...Object.values(counts));
+  if(v==="look") return screenFrLook();
   const pend=F.pending[0];
   return `${frBar()}
     <h1>Was ist gerade dran?</h1>
     <div class="muted" style="line-height:1.45;margin-top:-8px">Freude festhalten, ihre Essenz finden oder Neues ausprobieren.</div>
     ${pend?`<div class="card"><div class="kicker">Du probierst gerade aus</div><div style="line-height:1.45">${esc(pend.form)}</div>
       <div class="row" style="margin-top:6px"><button class="btn sm" data-act="fr-try-done" data-v="${pend.id}">Wie war's?</button><button class="btn sm quiet" data-act="fr-try-drop" data-v="${pend.id}">Verwerfen</button></div></div>`:""}
-    <button class="path hero" data-act="fr-view" data-v="moment"><span class="k">Schnell · 1 Minute</span><span class="t">Moment festhalten</span><span class="d">Gerade ist etwas Schönes passiert? Halte es fest, bevor es verblasst.</span></button>
+    ${(()=>{ const B=F.baro||[], last=B[B.length-1]; if(!last||daysSince(last.date)<7) return "";
+      return `<div class="card"><div class="kicker">Freude-Barometer · Zeit für deine Wocheneinschätzung</div>
+        <div class="f" style="font-size:17px">Wie viel Freude spürst du zurzeit in deinem Alltag?</div>${losRange(last.v)}
+        <button class="btn sm" style="align-self:flex-start;margin-top:6px" data-act="fr-baro">Eintragen</button></div>`; })()}
+    <button class="path" data-act="fr-view" data-v="moment"><span class="k">Schnell · 1 Minute</span><span class="t">Moment festhalten</span><span class="d">Gerade ist etwas Schönes passiert? Halte es fest, bevor es verblasst.</span></button>
     <button class="path" data-act="fr-view" data-v="essenz"><span class="k">Für ruhige Zeiten · ca. 15 Minuten</span><span class="t">${F.ess?"Essenz finden (fortsetzen)":"Essenz finden"}</span><span class="d">Eine Reise zu dem, was dir als Kind wahre Freude gemacht hat, und was darunter liegt.</span></button>
     <button class="path" data-act="fr-view" data-v="lib"><span class="k">Von anderen lernen</span><span class="t">Freude ausprobieren</span><span class="d">${allForms().length} Freude-Formen anderer Menschen. Probier eine aus und schau, was sie mit dir macht.</span></button>
+    <button class="path look" data-act="fr-view" data-v="look"><span class="k">Bewusst hinschauen</span><span class="t">Mein Freude-Weg</span><span class="d">Dein Freude-Barometer, die Liebe in deinem Leben und deine Essenzen.</span></button>`;
+}
+function screenFrLook(){
+  const F=frS();
+  const counts={}; S.entries.forEach(e=>{ (e.meta&&e.meta.love||[]).forEach(k=>counts[k]=(counts[k]||0)+1); });
+  const tot=Object.values(counts).reduce((a,b)=>a+b,0), mx=Math.max(1,...Object.values(counts));
+  const moments=S.entries.filter(e=>e.area==="freude").length;
+  return `${frBar(1)}<h1>Mein Freude-Weg</h1>
+    <div class="muted" style="line-height:1.45;margin-top:-8px">${moments?`${moments} ${moments===1?"Freude-Eintrag":"Freude-Einträge"} bisher. `:""}Alles Einzelne findest du auch im Journal.</div>
     ${(()=>{ const B=F.baro||[], last=B[B.length-1], due=!last||daysSince(last.date)>=7;
       return `<div class="card"><div class="kicker">Freude-Barometer</div>
       ${B.length?`${baroChart(B.map(x=>x.v))}<div class="small muted">Erster Wert: ${fmtV(B[0].v)} · zuletzt: ${fmtV(last.v)} · ${B.length} Einträge</div>`:`<div class="muted small" style="line-height:1.45">Wie im Freude-Kurs 2013: Schätze einmal pro Woche ein, wie viel Freude du im Alltag spürst. So siehst du, ob sich das „nachher“ wirklich einstellt.</div>`}
@@ -1295,7 +1308,6 @@ function screenFr(){
         : `<div class="soft small">Noch keine gefunden. Die erste Reise zeigt dir deine erste Essenz.</div>`}
     </div>`;
 }
-
 function screenFrMoment(){
   const m=ui.frM||(ui.frM={q:[],lv:null,love:[]});
   return `${frBar(1)}<h1>Moment festhalten</h1>
