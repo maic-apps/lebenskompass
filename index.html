@@ -130,7 +130,7 @@ button.entry{font:inherit;color:inherit}
 "use strict";
 /* ---------- Daten ---------- */
 const KEY = "lebenskompass.v1";
-const VERSION = "Etappe 12.2";
+const VERSION = "Etappe 12.3";
 const DIRS = {
   erkennen:  { name:"Erkennen",  pos:"n", rot:0,   kicker:"Oben · Beginn", text:"Was hält dich ab? Oder: Was Altes kommt hoch und will eingeordnet werden?", cta:"Starten" },
   loslassen: { name:"Loslassen", pos:"e", rot:90,  kicker:"Rechts", text:"Ein Gefühl in Runden loslassen, oder abhaken, dass du heute ohne eine ungeliebte Gewohnheit ausgekommen bist.", cta:"Öffnen" },
@@ -256,7 +256,7 @@ function screenStart(){
         <button class="btn sm" data-act="export">Jetzt sichern</button>
         <button class="btn sm quiet" data-act="snooze">Später</button>
       </div></div>` : ""}
-  <div style="text-align:center;margin-top:auto"><button class="back" style="margin:0 auto" data-act="go" data-to="#/mehr">Sichern &amp; Einstellungen</button></div>`;
+  <div style="text-align:center"><button class="back" style="margin:0 auto" data-act="go" data-to="#/mehr">Sichern &amp; Einstellungen</button></div>`;
 }
 /* Offene Nachfragen eines Bereichs, oben im Bereich */
 function ciCards(area){
