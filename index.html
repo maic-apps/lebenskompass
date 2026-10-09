@@ -52,16 +52,16 @@ h2{font-family:var(--serif);font-weight:600;font-size:22px;line-height:1.2;margi
 .soft{background:var(--soft);border-radius:14px;padding:14px 16px;color:var(--warm);font-size:15px;line-height:1.45}
 .row{display:flex;gap:10px;flex-wrap:wrap}
 /* compass */
-.compass{position:relative;width:340px;height:320px;margin:0 auto}
-.compass svg{position:absolute;left:80px;top:70px}
+.compass{position:relative;width:340px;height:290px;margin:0 auto}
+.compass svg{position:absolute;left:95px;top:70px}
 .dir{padding:0 6px}
 .dir{position:absolute;height:48px;border-radius:24px;border:1px solid var(--accent);background:var(--card);color:var(--accent);font-size:16px;font-weight:600}
 .dir.on{background:var(--accent);color:var(--accent-ink)}
 .dir .dot{position:absolute;top:-3px;right:-3px;width:14px;height:14px;border-radius:7px;background:#E0703A;border:2px solid var(--bg)}
-.dir.n{left:125px;top:0;width:90px}.dir.e{left:248px;top:136px;width:92px}.dir.s{left:125px;top:272px;width:90px}.dir.w{left:0;top:136px;width:84px}
-.center{position:absolute;left:134px;top:124px;width:72px;height:72px;border-radius:36px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:14px;font-weight:600}
+.dir.n{left:125px;top:0;width:90px}.dir.e{left:250px;top:121px;width:90px}.dir.s{left:125px;top:242px;width:90px}.dir.w{left:0;top:121px;width:90px}
+.center{position:absolute;left:134px;top:109px;width:72px;height:72px;border-radius:36px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:14px;font-weight:600}
 .center.on{background:var(--ink);color:var(--bg)}
-@media (max-width:370px){.compass{transform:scale(.88);transform-origin:top center;margin-bottom:-38px}}
+@media (max-width:370px){.compass{transform:scale(.88);transform-origin:top center;margin-bottom:-35px}}
 /* journal */
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{height:36px;padding:0 12px;border-radius:18px;border:1px solid var(--line);background:var(--card);font-size:14px;font-weight:600}
@@ -130,7 +130,7 @@ button.entry{font:inherit;color:inherit}
 "use strict";
 /* ---------- Daten ---------- */
 const KEY = "lebenskompass.v1";
-const VERSION = "Etappe 12.3";
+const VERSION = "Etappe 12.4";
 const DIRS = {
   erkennen:  { name:"Erkennen",  pos:"n", rot:0,   kicker:"Oben · Beginn", text:"Was hält dich ab? Oder: Was Altes kommt hoch und will eingeordnet werden?", cta:"Starten" },
   loslassen: { name:"Loslassen", pos:"e", rot:90,  kicker:"Rechts", text:"Ein Gefühl in Runden loslassen, oder abhaken, dass du heute ohne eine ungeliebte Gewohnheit ausgekommen bist.", cta:"Öffnen" },
@@ -200,7 +200,7 @@ function icon(area){
   if(!DIRS[area]) return `<svg class="ico" width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="var(--soft)"/><circle cx="14" cy="14" r="4" fill="var(--muted)"/></svg>`;
   return `<svg class="ico" width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="var(--accent-soft)"/><g transform="rotate(${DIRS[area].rot} 14 14)"><polygon points="14,4 18,14 14,12 10,14" fill="var(--accent)"/><polygon points="14,24 18,14 14,16 10,14" fill="var(--accent-2)"/></g></svg>`;
 }
-const ROSE = `<svg width="180" height="180" viewBox="0 0 200 200" aria-hidden="true">
+const ROSE = `<svg width="150" height="150" viewBox="0 0 200 200" aria-hidden="true">
 <circle cx="100" cy="100" r="96" fill="none" stroke="var(--line)" stroke-width="1.2"/>
 <circle cx="100" cy="100" r="90" fill="none" stroke="var(--line)" stroke-width="1.2" stroke-dasharray="2 5"/>
 <polygon points="100,12 113,87 100,100" fill="var(--accent)"/><polygon points="100,12 87,87 100,100" fill="var(--accent-2)"/>
