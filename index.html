@@ -130,7 +130,7 @@ button.entry{font:inherit;color:inherit}
 "use strict";
 /* ---------- Daten ---------- */
 const KEY = "lebenskompass.v1";
-const VERSION = "Etappe 12.6";
+const VERSION = "Etappe 12.7";
 const DIRS = {
   erkennen:  { name:"Erkennen",  pos:"n", rot:0,   kicker:"Oben · Beginn", text:"Was hält dich ab? Oder: Was Altes kommt hoch und will eingeordnet werden?", cta:"Starten" },
   loslassen: { name:"Loslassen", pos:"e", rot:90,  kicker:"Rechts", text:"Ein Gefühl in Runden loslassen, oder abhaken, dass du heute ohne eine ungeliebte Gewohnheit ausgekommen bist.", cta:"Öffnen" },
@@ -476,7 +476,7 @@ function screenLosChoice(){
     <button class="path" data-act="hab-feel"><span class="k">Über den Körper</span><span class="t">Ein Gefühl loslassen</span><span class="d">Etwas hält dich fest? Benennen, im Körper spüren, dabeibleiben, bis es nachlässt. In Runden.</span></button>
     <button class="path" data-act="tw-start"><span class="k">Über das Prüfen</span><span class="t">${S.tw?"Einen Gedanken loslassen (fortsetzen)":"Einen Gedanken loslassen"}</span><span class="d">${S.tw&&S.tw.thought?"„"+esc(S.tw.thought)+"“":"Ein Satz, der dich nicht loslässt? Vier Fragen und drei Umkehrungen, nach Byron Katies „The Work“."}</span></button>
     <button class="path" data-act="hab-open"><span class="k">Tag für Tag</span><span class="t">Eine Gewohnheit loslassen</span><span class="d">${H.length?H.map(h=>{ const n=habStats(h).streak; return esc(h.name)+": "+(n>0?"🔥 ":"")+n+(n===1?" Tag":" Tage"); }).join(" · "):"Zähle die Tage ohne eine Gewohnheit, die dir nicht guttut."}</span></button>
-    <button class="path look" data-act="hab-look"><span class="k">Bewusst hinschauen</span><span class="t">Mein Loslass-Weg</span><span class="d">Was du schon losgelassen hast: Gefühle, Gedanken, Gewohnheiten. Nur, wenn du gerade magst.</span></button>`;
+    <button class="path look" data-act="hab-look"><span class="k">Bewusst hinschauen</span><span class="t">Statistik</span><span class="d">Dein Rückblick auf das Loslassen. Nur, wenn du gerade magst.</span></button>`;
 }
 function screenLosLook(){
   const H=habS();
@@ -485,7 +485,7 @@ function screenLosLook(){
   const thought=e=>{ const m=/Gedanke: „([^\n]*)“/.exec(e.text); return m?m[1]:e.title; };
   const take=e=>{ const m=/Was ich mitnehme: ([^\n]*)/.exec(e.text); return m?m[1]:""; };
   const sec=(title,body,empty)=>`<div class="kicker" style="margin-top:10px">${title}</div>${body||`<div class="soft small">${empty}</div>`}`;
-  return `${losBar()}<h1>Mein Loslass-Weg</h1>
+  return `${losBar()}<h1>Statistik</h1>
     <div class="muted" style="line-height:1.45;margin-top:-8px">Was du schon losgelassen hast. Alles Einzelne findest du auch im Journal.</div>
     ${sec("Gewohnheiten · Tag für Tag", H.map(h=>{ const st=habStats(h); return `<div class="entry"><div class="body"><div class="title">${esc(h.name)}</div><div class="small muted">${st.streak>0?"🔥 ":""}${st.streak} ${st.streak===1?"Tag":"Tage"} in Folge · längste Serie ${st.best} · insgesamt ${st.total} ${st.total===1?"Tag":"Tage"}</div></div></div>`; }).join(""), "Noch keine Gewohnheit angelegt.")}
     ${sec("Gefühle · über den Körper", feel.slice(0,12).map(e=>{ const r=e.meta.rounds, a=r[0].start, z=e.meta.final; return `<div class="entry"><div class="body"><div class="kicker">${esc(shortDate(e.date))}</div><div class="title">${esc(e.title)}</div><div class="small muted">${esc(r.map(x=>x.name).join(" → "))}${a!=null&&z!=null?` · Stärke ${fmtV(a)} → ${fmtV(z)}`:""}</div></div></div>`; }).join(""), "Noch keine Loslass-Runde.")}
@@ -1485,11 +1485,11 @@ function screenErkDoors(){
     <button class="path" data-act="ein-start"><span class="k">Eine Einsicht</span><span class="t">Mir ist etwas klar geworden</span><span class="d">Ein Aha-Moment über dich oder dein Leben. Vier kurze Fragen, dann entscheidest du, was du damit tust.</span></button>
     <button class="path" data-act="erk-start"><span class="k">Nach vorn schauen</span><span class="t">Etwas hält mich ab</span><span class="d">Ein Wunsch, und etwas bremst dich. Bis zu sieben Fragen zu Wunsch, Bremse und Erlaubnis. Was nicht passt, überspringst du.</span></button>
     <button class="path" data-act="ord-start"><span class="k">Zurück schauen</span><span class="t">Etwas Altes kommt hoch</span><span class="d">Eine alte Geschichte, die immer wieder anklopft. Einordnen, würdigen, Frieden finden.</span></button>
-    <button class="path look" data-act="erk-themes"><span class="k">Bewusst hinschauen</span><span class="t">Meine alten Themen</span><span class="d">${T.length?`${T.length===1?"1 Thema mit seinem Verlauf.":T.length+" Themen mit ihrem Verlauf."} Nur, wenn du gerade magst.`:"Hier sammeln sich die Themen, die du einordnest."}</span></button>`;
+    <button class="path look" data-act="erk-themes"><span class="k">Bewusst hinschauen</span><span class="t">Statistik</span><span class="d">Dein Rückblick auf das Erkennen. Nur, wenn du gerade magst.</span></button>`;
 }
 function screenErkThemes(){
   const T=ordThemes();
-  return `${erkBar()}<h1>Meine alten Themen</h1>
+  return `${erkBar()}<h1>Statistik</h1>
     <div class="muted" style="line-height:1.45;margin-top:-8px">Mit der Zeit siehst du, wie sie leiser werden. Tippe auf ein Thema, um es noch einmal einzuordnen.</div>
     ${T.length ? T.slice().sort((a,b)=>(b.last||"").localeCompare(a.last||"")).map(t=>`<button class="entry" style="text-align:left;width:100%;cursor:pointer" data-act="ord-start" data-v="${t.id}">
           <div class="body"><div class="title">${esc(t.name)}</div>
