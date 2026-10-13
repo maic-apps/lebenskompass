@@ -130,7 +130,7 @@ button.entry{font:inherit;color:inherit}
 "use strict";
 /* ---------- Daten ---------- */
 const KEY = "lebenskompass.v1";
-const VERSION = "Etappe 12.4";
+const VERSION = "Etappe 12.5";
 const DIRS = {
   erkennen:  { name:"Erkennen",  pos:"n", rot:0,   kicker:"Oben · Beginn", text:"Was hält dich ab? Oder: Was Altes kommt hoch und will eingeordnet werden?", cta:"Starten" },
   loslassen: { name:"Loslassen", pos:"e", rot:90,  kicker:"Rechts", text:"Ein Gefühl in Runden loslassen, oder abhaken, dass du heute ohne eine ungeliebte Gewohnheit ausgekommen bist.", cta:"Öffnen" },
@@ -1816,6 +1816,47 @@ async function doExport(){
     S.lastBackup=new Date().toISOString(); save(); toast("Gesichert. Lege die Datei am besten in „Dateien“ ab."); render();
   }catch(e){ if(e && e.name!=="AbortError") toast("Sichern hat nicht geklappt."); }
 }
+/* Themen, Gewohnheiten, Interesse, Freude und eigene Wörter aus einer Sicherung ergänzen.
+   Regel: Nichts auf dem Gerät wird überschrieben. Es kommt nur dazu, was fehlt. */
+function importRest(d){
+  const more=[], copy=x=>JSON.parse(JSON.stringify(x));
+  const isObj=x=>x && typeof x==="object" && !Array.isArray(x);
+  // Themen: fehlende Themen dazu
+  if(Array.isArray(d.themes)){
+    const T=ordThemes(), have=new Set(T.map(t=>t.id)); let k=0;
+    d.themes.forEach(t=>{ if(isObj(t) && t.id && !have.has(t.id)){ T.push(copy(t)); k++; } });
+    if(k) more.push(k===1?"1 Thema":k+" Themen");
+  }
+  // Gewohnheiten: fehlende dazu, bei vorhandenen fehlende Tage ergänzen
+  if(Array.isArray(d.habits)){
+    const H=habS(); let k=0, dd=0;
+    d.habits.forEach(h=>{
+      if(!isObj(h) || !h.id) return;
+      const mine=H.find(x=>x.id===h.id);
+      if(!mine){ const c=copy(h); if(!isObj(c.days)) c.days={}; H.push(c); k++; }
+      else if(isObj(h.days)){ if(!isObj(mine.days)) mine.days={}; Object.keys(h.days).forEach(day=>{ if(mine.days[day]===undefined){ mine.days[day]=h.days[day]; dd++; } }); }
+    });
+    if(k) more.push(k===1?"1 Gewohnheit":k+" Gewohnheiten");
+    else if(dd) more.push("Tage bei Gewohnheiten");
+  }
+  // Interesse: nur übernehmen, wenn auf dem Gerät noch nichts da ist
+  if(isObj(d.int)){
+    const mine=S.int, empty=!mine || (!intHasData(mine) && !mine.isles);
+    if(empty){ S.int=copy(d.int); intS(); ["hits","exp","bonus","modes"].forEach(f=>{ if(!isObj(S.int[f])) S.int[f]={}; }); ["seen","pending","dreams"].forEach(f=>{ if(!Array.isArray(S.int[f])) S.int[f]=f==="dreams"?DREAMS.slice():[]; }); S.int.round=null; if(typeof S.int.rounds!=="number") S.int.rounds=0; more.push("Entdeckerkarte"); }
+  }
+  // Freude: nur übernehmen, wenn auf dem Gerät noch nichts da ist
+  if(isObj(d.fr)){
+    const m=S.fr, empty=!m || !((m.essences||[]).length || (m.own||[]).length || (m.pending||[]).length || (m.baro||[]).length || Object.keys(m.lib||{}).length);
+    if(empty){ S.fr=copy(d.fr); ["essences","own","pending"].forEach(f=>{ if(!Array.isArray(S.fr[f])) S.fr[f]=[]; }); if(!isObj(S.fr.lib)) S.fr.lib={}; if(S.fr.baro && !Array.isArray(S.fr.baro)) S.fr.baro=[]; S.fr.ess=null; more.push("Freude"); }
+  }
+  // Eigene Gefühls- und Körperwörter: zusammenführen, eigene zuerst
+  let w=false;
+  ["myFeelings","myBody"].forEach(f=>{ if(Array.isArray(d[f])){ const before=(S[f]||[]).length; S[f]=uniqCI((S[f]||[]).concat(d[f].filter(x=>typeof x==="string"))).slice(0,8); if(S[f].length>before) w=true; } });
+  if(w) more.push("eigene Wörter");
+  // Zähler der geprüften Gedanken
+  if(typeof d.twDone==="number" && d.twDone>(S.twDone||0)) S.twDone=d.twDone;
+  return more;
+}
 document.getElementById("importFile").addEventListener("change", async ev=>{
   const f=ev.target.files[0]; ev.target.value=""; if(!f) return;
   try{
@@ -1824,7 +1865,9 @@ document.getElementById("importFile").addEventListener("change", async ev=>{
     const have=new Set(S.entries.map(e=>e.id)); let n=0;
     d.entries.forEach(e=>{ if(e && e.id && e.date && !have.has(e.id)){ S.entries.push({id:String(e.id),date:String(e.date),area:String(e.area||"notiz"),title:String(e.title||""),text:String(e.text||""),meta:e.meta||null}); n++; } });
     if(Array.isArray(d.checkins)){ const hc=new Set(S.checkins.map(c=>c.id)); d.checkins.forEach(c=>{ if(c&&c.id&&!hc.has(c.id)) S.checkins.push(c); }); }
-    save(); toast(n===1?"1 Eintrag wiederhergestellt.":`${n} Einträge wiederhergestellt.`); render();
+    /* Ab Etappe 12.5: auch die übrigen Bereiche zurückholen. Vorhandenes auf dem Gerät hat immer Vorrang. */
+    const more=importRest(d);
+    save(); toast((n===1?"1 Eintrag wiederhergestellt.":`${n} Einträge wiederhergestellt.`)+(more.length?" Dazu: "+more.join(", ")+".":"")); render();
   }catch(e){ toast("Diese Datei ist keine Lebenskompass-Sicherung."); }
 });
 
