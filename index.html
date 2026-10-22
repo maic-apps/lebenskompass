@@ -131,7 +131,7 @@ button.entry{font:inherit;color:inherit}
 "use strict";
 /* ---------- Daten ---------- */
 const KEY = "lebenskompass.v1";
-const VERSION = "Etappe 12.8";
+const VERSION = "Etappe 12.9";
 const DIRS = {
   erkennen:  { name:"Erkennen",  pos:"n", rot:0,   kicker:"Oben · Beginn", text:"Was hält dich ab? Oder: Was Altes kommt hoch und will eingeordnet werden?", cta:"Starten" },
   loslassen: { name:"Loslassen", pos:"e", rot:90,  kicker:"Rechts", text:"Ein Gefühl in Runden loslassen, oder abhaken, dass du heute ohne eine ungeliebte Gewohnheit ausgekommen bist.", cta:"Öffnen" },
@@ -1640,18 +1640,17 @@ function ordAction(a,b){
   else if(a==="ord-cancel-yes"){ S.ord=null; ui.ordConfirmCancel=false; save(); render(); }
 }
 
-/* ---------- Wohin geht's? (Etappe 12.8) ---------- */
+/* ---------- Wohin geht's? (Etappe 12.9: ein Bildschirm) ---------- */
 function wohBar(back){ return `<div class="bar"><button class="back" data-act="${back?"woh-home":"go"}" data-to="#/">‹ ${back?"Wohin geht's?":"Kompass"}</button><span class="kicker">${back?"":"Wohin geht's?"}</span><button class="pill" data-act="go" data-to="#/pause">Pause</button></div>`; }
 function screenWohin(){
   const v=ui.wohView||"main";
-  if(v==="hob") return screenHob();
   if(v==="hobdone") return screenHobDone();
   if(v==="look") return `${wohBar(1)}<h1>Statistik</h1>
     <div class="muted" style="line-height:1.45;margin-top:-8px">Dein Rückblick auf das, was läuft. Alles Einzelne findest du auch im Journal.</div>
     ${hobStatCard()}`;
   return `${wohBar()}<h1>Wohin geht's?</h1>
-    <div class="muted" style="line-height:1.45;margin-top:-8px">Was du regelmäßig pflegst und wohin du unterwegs bist.</div>
-    ${hobTile()}
+    <div class="muted" style="line-height:1.45;margin-top:-8px">Was du regelmäßig pflegst. Du tippst nur, wenn du es gemacht hast. Eine leere Woche ist einfach eine leere Woche.</div>
+    ${hobList()}
     <button class="path look" data-act="woh-view" data-v="look"><span class="k">Bewusst hinschauen</span><span class="t">Statistik</span><span class="d">Dein Rückblick auf das, was läuft. Nur, wenn du gerade magst.</span></button>`;
 }
 function wohAction(a,b){
@@ -1667,12 +1666,6 @@ function hobWeekStart(){ const x=new Date(); x.setHours(0,0,0,0); x.setDate(x.ge
 function hobWeek(h){ const ws=hobWeekStart(); return h.log.filter(l=>new Date(l.date).getTime()>=ws).length; }
 function hobToday(h){ return h.log.find(l=>dKey(l.date)===dShift(0)); }
 function hobDots(n,k){ let o=""; for(let i=0;i<Math.max(n,k);i++) o+=`<span aria-hidden="true" style="display:inline-block;width:14px;height:14px;border-radius:7px;margin-right:2px;${i<n?"background:var(--accent)":"border:1.5px solid var(--accent)"}"></span>`; return o; }
-function hobTile(){
-  const H=hobS();
-  const d=H.length ? H.map(h=>`${esc(h.name)}: ${hobWeek(h)} von ${h.per}`).join(" · ")+" diese Woche"
-    : "Was du regelmäßig pflegen möchtest: Sport, Hobbys, Menschen. Halte fest, wenn du es gemacht hast.";
-  return `<button class="path" data-act="woh-view" data-v="hob"><span class="k">Regelmäßig</span><span class="t">Was läuft</span><span class="d">${d}</span></button>`;
-}
 function hobCard(h){
   const n=hobWeek(h), t=hobToday(h);
   return `<div class="card" style="gap:8px">
@@ -1680,14 +1673,12 @@ function hobCard(h){
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${hobDots(n,h.per)}<span class="small" style="margin-left:4px">Diese Woche: ${n} von ${h.per}</span></div>
     ${t ? `<div class="small">Heute: <b>gemacht ✓</b> <button class="linkbtn" style="min-height:32px" data-act="hob-undo" data-v="${h.id}">ändern</button></div>`
         : `<button class="btn sm" style="align-self:flex-start" data-act="hob-done" data-v="${h.id}">Heute gemacht</button>`}
-    <button class="linkbtn" style="align-self:flex-start;min-height:32px;padding:0" data-act="hob-del" data-v="${h.id}">${ui.hobDel===h.id?"Wirklich entfernen? Deine Journal-Einträge bleiben.":"Entfernen"}</button>
+    <button class="linkbtn" style="align-self:flex-start;min-height:32px;padding:0;text-decoration:none;color:var(--muted);font-size:14px" data-act="hob-del" data-v="${h.id}">${ui.hobDel===h.id?"Wirklich entfernen? Deine Journal-Einträge bleiben.":"Entfernen"}</button>
   </div>`;
 }
-function screenHob(){
+function hobList(){
   const H=hobS(), per=ui.hobPer||1;
-  return `${wohBar(1)}<h1>Was läuft</h1>
-    <div class="muted" style="line-height:1.45;margin-top:-8px">Du tippst nur, wenn du es gemacht hast. Eine leere Woche ist einfach eine leere Woche.</div>
-    ${H.map(hobCard).join("")}
+  return `${H.map(hobCard).join("")}
     <div class="card"><div class="kicker">Etwas hinzufügen, das du regelmäßig pflegst</div>
       <input class="t" id="hobNew" maxlength="40" autocomplete="off" placeholder="z. B. Taekwondo, Radfahren" value="${esc(ui.hobName||"")}">
       <div class="small" style="font-weight:600;margin-top:4px">Wie oft pro Woche möchtest du es?</div>
@@ -1697,7 +1688,7 @@ function screenHob(){
 }
 function screenHobDone(){
   const D=ui.hobDone, h=D&&hobS().find(x=>x.id===D.hid);
-  if(!h){ ui.wohView="hob"; return screenHob(); }
+  if(!h){ ui.wohView="main"; return screenWohin(); }
   return `${wohBar(1)}<h1>${esc(h.name)} · gemacht</h1>
     <div class="card" style="align-items:center;text-align:center;gap:4px">${D.mile?`<div class="kicker">Das ${D.mile}. Mal · steht im Journal</div>`:""}<div style="font-size:17px">Schön, dass du dir das gegönnt hast.</div></div>
     <div class="card"><h2 style="font-size:21px">Wie war's?</h2><div class="small muted">Freiwillig.</div>
@@ -1744,9 +1735,9 @@ function hobAction(a,b){
       const note=(D.note||"").trim();
       if(note) addEntry({ area:"wohin", title:h.name, text:note+(l.mood?`\n${HOB_MOODS[l.mood-1][0]} ${HOB_MOODS[l.mood-1][1]}`:""), meta:{ hobby:h.id, hobbyLog:l.id } });
       save(); toast(note?"Im Journal festgehalten.":"Eingetragen."); }
-    ui.hobDone=null; ui.wohView="hob"; top();
+    ui.hobDone=null; ui.wohView="main"; top();
   }
-  else if(a==="hob-skip"){ ui.hobDone=null; ui.wohView="hob"; toast("Eingetragen."); top(); }
+  else if(a==="hob-skip"){ ui.hobDone=null; ui.wohView="main"; toast("Eingetragen."); top(); }
   else if(a==="hob-undo"){
     const h=hobS().find(x=>x.id===v), t=h&&hobToday(h); if(!t) return;
     h.log=h.log.filter(x=>x.id!==t.id); S.entries=S.entries.filter(e=>!(e.meta&&e.meta.hobbyLog===t.id&&e.meta.count)); save(); render();
