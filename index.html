@@ -56,6 +56,7 @@ h2{font-family:var(--serif);font-weight:600;font-size:22px;line-height:1.2;margi
 .compass svg{position:absolute;left:95px;top:70px}
 .dir{padding:0 6px}
 .dir{position:absolute;height:48px;border-radius:24px;border:1px solid var(--accent);background:var(--card);color:var(--accent);font-size:16px;font-weight:600}
+.navbtn{align-self:center;height:48px;border-radius:24px;border:1px solid var(--accent);background:var(--card);color:var(--accent);font-size:16px;font-weight:600;padding:0 24px}
 .dir.on{background:var(--accent);color:var(--accent-ink)}
 .dir .dot{position:absolute;top:-3px;right:-3px;width:14px;height:14px;border-radius:7px;background:#E0703A;border:2px solid var(--bg)}
 .dir.n{left:125px;top:0;width:90px}.dir.e{left:250px;top:121px;width:90px}.dir.s{left:125px;top:242px;width:90px}.dir.w{left:0;top:121px;width:90px}
@@ -130,7 +131,7 @@ button.entry{font:inherit;color:inherit}
 "use strict";
 /* ---------- Daten ---------- */
 const KEY = "lebenskompass.v1";
-const VERSION = "Etappe 12.7";
+const VERSION = "Etappe 12.8";
 const DIRS = {
   erkennen:  { name:"Erkennen",  pos:"n", rot:0,   kicker:"Oben · Beginn", text:"Was hält dich ab? Oder: Was Altes kommt hoch und will eingeordnet werden?", cta:"Starten" },
   loslassen: { name:"Loslassen", pos:"e", rot:90,  kicker:"Rechts", text:"Ein Gefühl in Runden loslassen, oder abhaken, dass du heute ohne eine ungeliebte Gewohnheit ausgekommen bist.", cta:"Öffnen" },
@@ -148,6 +149,7 @@ function load(){
   return fresh();
 }
 let S = load();
+S.entries.forEach(e=>{ if(e.area==="freude" && e.meta && e.meta.hobby){ e.area="wohin"; if(e.title&&e.title.startsWith("Hobby: ")) e.title=e.title.slice(7); } });
 function save(){
   try{ localStorage.setItem(KEY, JSON.stringify(S)); return true; }
   catch(e){ toast("Speichern hat nicht geklappt."); return false; }
@@ -187,7 +189,7 @@ function entryKicker(e, when){
   if(m.love && m.love.length) p.push("♡ "+m.love.map(k=>({partnerschaft:"Eros (Partnerschaft)",freundschaft:"Philia (Freundschaft)",familie:"Storge (Familie)",welt:"Agape (Zuwendung zur Welt)",selbst:"Philautia (Selbstliebe)"}[k]||k)).join(", "));
   p.push(when); return p.join(" · ");
 }
-function areaName(a){ return DIRS[a] ? DIRS[a].name : "Notiz"; }
+function areaName(a){ return DIRS[a] ? DIRS[a].name : a==="wohin" ? "Wohin geht's?" : "Notiz"; }
 
 let toastT=null;
 function toast(msg){
@@ -220,7 +222,8 @@ function goodMemories(){
   const good=e=> e.area==="freude"
     || (e.area==="interesse" && e.meta && (e.meta.more==="ja"||e.meta.more==="vielleicht"))
     || (e.area==="loslassen" && e.meta && e.meta.streak)
-    || (e.title==="Kleiner Schritt geschafft");
+    || (e.title==="Kleiner Schritt geschafft")
+    || (e.area==="wohin" && e.meta && e.meta.count);
   const all=S.entries.filter(good), older=all.filter(e=>dayKey(e.date)!==dayKey(new Date()));
   return older.length?older:all;
 }
@@ -234,13 +237,14 @@ function screenStart(){
     <div><div class="muted small">${esc(today)}</div></div>
     <button class="pill" data-act="go" data-to="#/pause">Pause</button>
   </div>
-  <h1>Wohin geht's heute?</h1>
+  <h1 style="text-align:center">Wie geht's heute?</h1>
   <div class="compass">
     ${ROSE}
     ${ORDER.map(k=>`<button class="dir ${DIRS[k].pos}" data-act="go" data-to="#/bereich/${k}" aria-label="${DIRS[k].name}${due.has(k)?", hier wartet etwas":""}">${DIRS[k].name}${due.has(k)?`<span class="dot" aria-hidden="true"></span>`:""}</button>`).join("")}
     <button class="center" data-act="go" data-to="#/journal" aria-label="Journal">Journal</button>
   </div>
-  <div class="muted" style="text-align:center;line-height:1.45">Tippe auf eine Richtung, oder in die Mitte für dein Journal.${due.size?`<br><span class="small">Ein Punkt zeigt, wo etwas auf dich wartet.</span>`:""}</div>
+  ${due.size?`<div class="muted small" style="text-align:center">Ein Punkt zeigt, wo etwas auf dich wartet.</div>`:""}
+  <button class="navbtn" data-act="go" data-to="#/wohin">Wohin geht's?</button>
   ${m ? `<div style="display:flex;flex-direction:column;gap:8px">
       <div class="entry">${icon(m.area)}<div class="body">
         <div class="kicker">${esc(entryKicker(m, shortDate(m.date)))}</div>
@@ -248,7 +252,7 @@ function screenStart(){
         <div class="text">${esc(m.text)}</div></div></div>
       <div class="row" style="justify-content:center"><button class="linkbtn" data-act="mem-show">Eine andere</button><button class="linkbtn" data-act="mem-hide">Ausblenden</button></div></div>`
     : ui.memNone ? `<div class="soft" style="text-align:center">Noch keine schönen Erinnerungen. Halte bei Freude einen Moment fest, dann wartet er hier auf dich.</div>`
-    : `<button class="btn line" style="align-self:center" data-act="mem-show">Eine schöne Erinnerung zeigen</button>`}
+    : `<button class="navbtn" data-act="mem-show">Eine schöne Erinnerung zeigen</button>`}
   ${backupDue ? `<div class="card">
       <div class="kicker">Datensicherung</div>
       <div>Dein letzter Stand ist über einen Monat alt. Magst du kurz sichern?</div>
@@ -274,7 +278,7 @@ function screenJournal(){
   const f = ui.filter;
   const list = S.entries.filter(e=>f==="alle" || (f==="liebe" ? !!(e.meta&&e.meta.love&&e.meta.love.length) : e.area===f)).sort((a,b)=>b.date.localeCompare(a.date));
   const days=[]; list.forEach(e=>{ const k=dayKey(e.date); let d=days.find(x=>x.k===k); if(!d){ d={k,label:dayLabel(e.date),items:[]}; days.push(d);} d.items.push(e); });
-  const filters=[["alle","Alle"],...ORDER.map(k=>[k,DIRS[k].name]),["notiz","Notizen"],["liebe","♡ Liebe"]];
+  const filters=[["alle","Alle"],...ORDER.map(k=>[k,DIRS[k].name]),["wohin","Wohin"],["notiz","Notizen"],["liebe","♡ Liebe"]];
   return `
   <div class="bar"><button class="back" data-act="go" data-to="#/">‹ Kompass</button><span class="kicker">Mitte</span><button class="pill" data-act="go" data-to="#/pause">Pause</button></div>
   <div class="bar"><h1>Dein Journal</h1><button class="btn sm line" data-act="go" data-to="#/notiz">+ Notiz</button></div>
@@ -1269,23 +1273,20 @@ function screenFr(){
   if(v==="lib") return screenFrLib();
   if(v==="try") return screenFrTry();
   if(v==="look") return screenFrLook();
-  if(v==="hob") return screenHob();
-  if(v==="hobdone") return screenHobDone();
   const pend=F.pending[0];
   return `${frBar()}
     <h1>Was ist gerade dran?</h1>
-    <div class="muted" style="line-height:1.45;margin-top:-8px">Dranbleiben an dem, was dir guttut, Freude festhalten, ihre Essenz finden oder Neues ausprobieren.</div>
+    <div class="muted" style="line-height:1.45;margin-top:-8px">Freude festhalten, ihre Essenz finden oder Neues ausprobieren.</div>
     ${pend?`<div class="card"><div class="kicker">Du probierst gerade aus</div><div style="line-height:1.45">${esc(pend.form)}</div>
       <div class="row" style="margin-top:6px"><button class="btn sm" data-act="fr-try-done" data-v="${pend.id}">Wie war's?</button><button class="btn sm quiet" data-act="fr-try-drop" data-v="${pend.id}">Verwerfen</button></div></div>`:""}
     ${(()=>{ const B=F.baro||[], last=B[B.length-1]; if(!last||daysSince(last.date)<7) return "";
       return `<div class="card"><div class="kicker">Freude-Barometer · Zeit für deine Wocheneinschätzung</div>
         <div class="f" style="font-size:17px">Wie viel Freude spürst du zurzeit in deinem Alltag?</div>${losRange(last.v)}
         <button class="btn sm" style="align-self:flex-start;margin-top:6px" data-act="fr-baro">Eintragen</button></div>`; })()}
-    ${hobTile()}
     <button class="path" data-act="fr-view" data-v="moment"><span class="k">Schnell · 1 Minute</span><span class="t">Moment festhalten</span><span class="d">Gerade ist etwas Schönes passiert? Halte es fest, bevor es verblasst.</span></button>
     <button class="path" data-act="fr-view" data-v="essenz"><span class="k">Für ruhige Zeiten · ca. 15 Minuten</span><span class="t">${F.ess?"Essenz finden (fortsetzen)":"Essenz finden"}</span><span class="d">Eine Reise zu dem, was dir als Kind wahre Freude gemacht hat, und was darunter liegt.</span></button>
     <button class="path" data-act="fr-view" data-v="lib"><span class="k">Von anderen lernen</span><span class="t">Freude ausprobieren</span><span class="d">${allForms().length} Freude-Formen anderer Menschen. Probier eine aus und schau, was sie mit dir macht.</span></button>
-    <button class="path look" data-act="fr-view" data-v="look"><span class="k">Bewusst hinschauen</span><span class="t">Statistik</span><span class="d">Deine Hobbys &amp; Aktivitäten, dein Freude-Barometer, die Liebe in deinem Leben und deine Essenzen im Rückblick.</span></button>`;
+    <button class="path look" data-act="fr-view" data-v="look"><span class="k">Bewusst hinschauen</span><span class="t">Statistik</span><span class="d">Dein Freude-Barometer, die Liebe in deinem Leben und deine Essenzen im Rückblick.</span></button>`;
 }
 function screenFrLook(){
   const F=frS();
@@ -1294,7 +1295,6 @@ function screenFrLook(){
   const moments=S.entries.filter(e=>e.area==="freude").length;
   return `${frBar(1)}<h1>Statistik</h1>
     <div class="muted" style="line-height:1.45;margin-top:-8px">${moments?`${moments} ${moments===1?"Freude-Eintrag":"Freude-Einträge"} bisher. `:""}Alles Einzelne findest du auch im Journal.</div>
-    ${hobStatCard()}
     ${(()=>{ const B=F.baro||[], last=B[B.length-1], due=!last||daysSince(last.date)>=7;
       return `<div class="card"><div class="kicker">Freude-Barometer</div>
       ${B.length?`${baroChart(B.map(x=>x.v))}<div class="small muted">Erster Wert: ${fmtV(B[0].v)} · zuletzt: ${fmtV(last.v)} · ${B.length} Einträge</div>`:`<div class="muted small" style="line-height:1.45">Wie im Freude-Kurs 2013: Schätze einmal pro Woche ein, wie viel Freude du im Alltag spürst. So siehst du, ob sich das „nachher“ wirklich einstellt.</div>`}
@@ -1640,6 +1640,25 @@ function ordAction(a,b){
   else if(a==="ord-cancel-yes"){ S.ord=null; ui.ordConfirmCancel=false; save(); render(); }
 }
 
+/* ---------- Wohin geht's? (Etappe 12.8) ---------- */
+function wohBar(back){ return `<div class="bar"><button class="back" data-act="${back?"woh-home":"go"}" data-to="#/">‹ ${back?"Wohin geht's?":"Kompass"}</button><span class="kicker">${back?"":"Wohin geht's?"}</span><button class="pill" data-act="go" data-to="#/pause">Pause</button></div>`; }
+function screenWohin(){
+  const v=ui.wohView||"main";
+  if(v==="hob") return screenHob();
+  if(v==="hobdone") return screenHobDone();
+  if(v==="look") return `${wohBar(1)}<h1>Statistik</h1>
+    <div class="muted" style="line-height:1.45;margin-top:-8px">Dein Rückblick auf das, was läuft. Alles Einzelne findest du auch im Journal.</div>
+    ${hobStatCard()}`;
+  return `${wohBar()}<h1>Wohin geht's?</h1>
+    <div class="muted" style="line-height:1.45;margin-top:-8px">Was du regelmäßig pflegst und wohin du unterwegs bist.</div>
+    ${hobTile()}
+    <button class="path look" data-act="woh-view" data-v="look"><span class="k">Bewusst hinschauen</span><span class="t">Statistik</span><span class="d">Dein Rückblick auf das, was läuft. Nur, wenn du gerade magst.</span></button>`;
+}
+function wohAction(a,b){
+  if(a==="woh-home"){ ui.wohView="main"; ui.hobDone=null; render(); window.scrollTo(0,0); }
+  else if(a==="woh-view"){ ui.wohView=b.dataset.v; render(); window.scrollTo(0,0); }
+}
+
 /* ---------- Freude: Hobbys & Aktivitäten (Etappe 12.5) ---------- */
 const HOB_MILES = [1,5,10,25,50,100,150,200,300,400,500];
 const HOB_MOODS = [["😐","kaum"],["🙂","etwas"],["😊","gut"],["😄","sehr"],["🤩","riesig"]];
@@ -1651,8 +1670,8 @@ function hobDots(n,k){ let o=""; for(let i=0;i<Math.max(n,k);i++) o+=`<span aria
 function hobTile(){
   const H=hobS();
   const d=H.length ? H.map(h=>`${esc(h.name)}: ${hobWeek(h)} von ${h.per}`).join(" · ")+" diese Woche"
-    : "Sport, Hobbys und alles, was dir guttut. Halte fest, wenn du es gemacht hast.";
-  return `<button class="path" data-act="fr-view" data-v="hob"><span class="k">Hobbys &amp; Aktivitäten</span><span class="t">Was läuft</span><span class="d">${d}</span></button>`;
+    : "Was du regelmäßig pflegen möchtest: Sport, Hobbys, Menschen. Halte fest, wenn du es gemacht hast.";
+  return `<button class="path" data-act="woh-view" data-v="hob"><span class="k">Regelmäßig</span><span class="t">Was läuft</span><span class="d">${d}</span></button>`;
 }
 function hobCard(h){
   const n=hobWeek(h), t=hobToday(h);
@@ -1666,11 +1685,11 @@ function hobCard(h){
 }
 function screenHob(){
   const H=hobS(), per=ui.hobPer||1;
-  return `${frBar(1)}<div class="kicker">Hobbys &amp; Aktivitäten</div><h1>Was läuft</h1>
+  return `${wohBar(1)}<h1>Was läuft</h1>
     <div class="muted" style="line-height:1.45;margin-top:-8px">Du tippst nur, wenn du es gemacht hast. Eine leere Woche ist einfach eine leere Woche.</div>
     ${H.map(hobCard).join("")}
-    <div class="card"><div class="kicker">Hobby oder Aktivität hinzufügen</div>
-      <input class="t" id="hobNew" maxlength="40" autocomplete="off" placeholder="z. B. Tanzen, Radfahren, Gitarre" value="${esc(ui.hobName||"")}">
+    <div class="card"><div class="kicker">Etwas hinzufügen, das du regelmäßig pflegst</div>
+      <input class="t" id="hobNew" maxlength="40" autocomplete="off" placeholder="z. B. Taekwondo, Radfahren" value="${esc(ui.hobName||"")}">
       <div class="small" style="font-weight:600;margin-top:4px">Wie oft pro Woche möchtest du es?</div>
       <div class="chips">${[1,2,3,4,5,6,7].map(k=>`<button class="chip ${per===k?"on":""}" data-act="hob-per" data-v="${k}" aria-pressed="${per===k}">${k}×</button>`).join("")}</div>
       <div id="hobErr" class="small" style="color:var(--danger);min-height:18px"></div>
@@ -1678,8 +1697,8 @@ function screenHob(){
 }
 function screenHobDone(){
   const D=ui.hobDone, h=D&&hobS().find(x=>x.id===D.hid);
-  if(!h){ ui.frView="hob"; return screenHob(); }
-  return `${frBar(1)}<div class="kicker">Hobbys &amp; Aktivitäten</div><h1>${esc(h.name)} · gemacht</h1>
+  if(!h){ ui.wohView="hob"; return screenHob(); }
+  return `${wohBar(1)}<h1>${esc(h.name)} · gemacht</h1>
     <div class="card" style="align-items:center;text-align:center;gap:4px">${D.mile?`<div class="kicker">Das ${D.mile}. Mal · steht im Journal</div>`:""}<div style="font-size:17px">Schön, dass du dir das gegönnt hast.</div></div>
     <div class="card"><h2 style="font-size:21px">Wie war's?</h2><div class="small muted">Freiwillig.</div>
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:6px">${HOB_MOODS.map(([e,l],i)=>{ const on=D.mood===i+1; return `<button class="chip ${on?"on":""}" style="height:auto;min-height:64px;flex-direction:column;display:flex;align-items:center;justify-content:center;gap:2px;padding:6px 0;border-radius:14px" data-act="hob-mood" data-v="${i+1}" aria-pressed="${on}"><span style="font-size:26px">${e}</span><span class="small">${l}</span></button>`; }).join("")}</div>
@@ -1689,9 +1708,9 @@ function screenHobDone(){
 }
 function hobStatCard(){
   const H=hobS();
-  if(!H.length) return `<div class="card"><div class="kicker">Hobbys &amp; Aktivitäten</div><div class="muted small" style="line-height:1.45">Wenn du unter „Was läuft“ ein Hobby anlegst und abhakst, siehst du hier, wie oft du es gemacht hast und wie es dir dabei ging.</div></div>`;
+  if(!H.length) return `<div class="card"><div class="kicker">Was läuft</div><div class="muted small" style="line-height:1.45">Wenn du unter „Was läuft“ etwas anlegst und abhakst, siehst du hier, wie oft du es gemacht hast und wie es dir dabei ging.</div></div>`;
   const mon=d=>new Date(d).toLocaleDateString("de-DE",{month:"long",year:"numeric"});
-  return `<div class="card" style="gap:0"><div class="kicker" style="margin-bottom:6px">Hobbys &amp; Aktivitäten</div>
+  return `<div class="card" style="gap:0"><div class="kicker" style="margin-bottom:6px">Was läuft</div>
     ${H.map(h=>{ const n=h.log.length, moods=h.log.map(l=>l.mood).filter(Boolean);
       let mode=null; if(moods.length){ const c={}; moods.forEach(m=>c[m]=(c[m]||0)+1); mode=+Object.keys(c).sort((a,b)=>c[b]-c[a]||b-a)[0]; }
       const next=HOB_MILES.find(m=>m>n);
@@ -1707,7 +1726,7 @@ function hobAction(a,b){
   if(a==="hob-per"){ keepName(); ui.hobPer=+v; render(); }
   else if(a==="hob-add"){
     const n=document.getElementById("hobNew").value.trim();
-    if(!n){ document.getElementById("hobErr").textContent="Gib deinem Hobby einen Namen."; return; }
+    if(!n){ document.getElementById("hobErr").textContent="Gib dem Ganzen einen Namen."; return; }
     hobS().push({ id:uid(), name:n, per:ui.hobPer||1, created:new Date().toISOString(), log:[] });
     ui.hobName=""; ui.hobPer=1; save(); toast("Hinzugefügt."); render();
   }
@@ -1715,19 +1734,19 @@ function hobAction(a,b){
     const h=hobS().find(x=>x.id===v); if(!h) return;
     const l={ id:uid(), date:new Date().toISOString(), mood:null }; h.log.push(l);
     const n=h.log.length, mile=HOB_MILES.includes(n)?n:null;
-    if(mile){ const e=addEntry({ area:"freude", title:"Hobby: "+h.name, text:n===1?`Zum ersten Mal festgehalten: ${h.name}.`:`Das ${n}. Mal ${h.name}.`, meta:{ hobby:h.id, hobbyLog:l.id, count:n } }); l.mile=e.id; }
-    save(); ui.hobDone={ hid:h.id, lid:l.id, mood:null, note:"", mile }; ui.frView="hobdone"; top();
+    if(mile){ const e=addEntry({ area:"wohin", title:h.name, text:n===1?`Zum ersten Mal festgehalten: ${h.name}.`:`Das ${n}. Mal ${h.name}.`, meta:{ hobby:h.id, hobbyLog:l.id, count:n } }); l.mile=e.id; }
+    save(); ui.hobDone={ hid:h.id, lid:l.id, mood:null, note:"", mile }; ui.wohView="hobdone"; top();
   }
   else if(a==="hob-mood"){ keepNote(); ui.hobDone.mood = ui.hobDone.mood===+v ? null : +v; render(); }
   else if(a==="hob-finish"){
     keepNote(); const D=ui.hobDone, h=D&&hobS().find(x=>x.id===D.hid), l=h&&h.log.find(x=>x.id===D.lid);
     if(l){ l.mood=D.mood||null;
       const note=(D.note||"").trim();
-      if(note) addEntry({ area:"freude", title:"Hobby: "+h.name, text:note+(l.mood?`\n${HOB_MOODS[l.mood-1][0]} ${HOB_MOODS[l.mood-1][1]}`:""), meta:{ hobby:h.id, hobbyLog:l.id } });
+      if(note) addEntry({ area:"wohin", title:h.name, text:note+(l.mood?`\n${HOB_MOODS[l.mood-1][0]} ${HOB_MOODS[l.mood-1][1]}`:""), meta:{ hobby:h.id, hobbyLog:l.id } });
       save(); toast(note?"Im Journal festgehalten.":"Eingetragen."); }
-    ui.hobDone=null; ui.frView="hob"; top();
+    ui.hobDone=null; ui.wohView="hob"; top();
   }
-  else if(a==="hob-skip"){ ui.hobDone=null; ui.frView="hob"; toast("Eingetragen."); top(); }
+  else if(a==="hob-skip"){ ui.hobDone=null; ui.wohView="hob"; toast("Eingetragen."); top(); }
   else if(a==="hob-undo"){
     const h=hobS().find(x=>x.id===v), t=h&&hobToday(h); if(!t) return;
     h.log=h.log.filter(x=>x.id!==t.id); S.entries=S.entries.filter(e=>!(e.meta&&e.meta.hobbyLog===t.id&&e.meta.count)); save(); render();
@@ -1884,6 +1903,7 @@ function render(){
   else if(h==="#/bereich/erkennen") html=screenErk();
   else if(h==="#/bereich/interesse") html=screenInt();
   else if(h==="#/bereich/freude") html=screenFr();
+  else if(h==="#/wohin") html=screenWohin();
   else if(h.startsWith("#/bereich/")) html=screenBereich(h.slice(10));
   else html=screenStart();
   app.innerHTML = html;
@@ -1891,7 +1911,7 @@ function render(){
   if(h==="#/bereich/loslassen") losAfterRender();
 }
 let lastRoute = "#/";
-window.addEventListener("hashchange", ()=>{ ui.confirmDel=null; ui.confirmWipe=false; ui.losBackfill=false; ui.losConfirmDiscard=false; ui.erkConfirmCancel=false; ui.ordConfirmCancel=false; ui.losView=ui.losGoFeel?"feel":null; ui.losGoFeel=false; ui.habDel=null; ui.intView="map"; ui.intPick=null; ui.memId=null; ui.memNone=false; ui.erkThemes=false; ui.frView="main"; render(); window.scrollTo(0,0); });
+window.addEventListener("hashchange", ()=>{ ui.confirmDel=null; ui.confirmWipe=false; ui.losBackfill=false; ui.losConfirmDiscard=false; ui.erkConfirmCancel=false; ui.ordConfirmCancel=false; ui.losView=ui.losGoFeel?"feel":null; ui.losGoFeel=false; ui.habDel=null; ui.intView="map"; ui.intPick=null; ui.memId=null; ui.memNone=false; ui.erkThemes=false; ui.frView="main"; ui.wohView="main"; render(); window.scrollTo(0,0); });
 
 function startBreath(){
   const b=document.getElementById("breath"), t=document.getElementById("breathTxt");
@@ -2018,6 +2038,7 @@ app.addEventListener("click", e=>{
   else if(a.startsWith("tw-")) twAction(a,b);
   else if(a.startsWith("int-")) intAction(a,b);
   else if(a.startsWith("hob-")) hobAction(a,b);
+  else if(a.startsWith("woh-")) wohAction(a,b);
   else if(a.startsWith("fr-")) frAction(a,b);
   else if(a==="export") doExport();
   else if(a==="snooze"){ S.backupSnooze=new Date().toISOString(); save(); render(); }
