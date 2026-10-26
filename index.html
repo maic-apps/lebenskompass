@@ -131,7 +131,7 @@ button.entry{font:inherit;color:inherit}
 "use strict";
 /* ---------- Daten ---------- */
 const KEY = "lebenskompass.v1";
-const VERSION = "Etappe 12.9";
+const VERSION = "Etappe 13.0";
 const DIRS = {
   erkennen:  { name:"Erkennen",  pos:"n", rot:0,   kicker:"Oben · Beginn", text:"Was hält dich ab? Oder: Was Altes kommt hoch und will eingeordnet werden?", cta:"Starten" },
   loslassen: { name:"Loslassen", pos:"e", rot:90,  kicker:"Rechts", text:"Ein Gefühl in Runden loslassen, oder abhaken, dass du heute ohne eine ungeliebte Gewohnheit ausgekommen bist.", cta:"Öffnen" },
@@ -223,7 +223,7 @@ function goodMemories(){
     || (e.area==="interesse" && e.meta && (e.meta.more==="ja"||e.meta.more==="vielleicht"))
     || (e.area==="loslassen" && e.meta && e.meta.streak)
     || (e.title==="Kleiner Schritt geschafft")
-    || (e.area==="wohin" && e.meta && e.meta.count);
+    || (e.area==="wohin" && e.meta && (e.meta.count || e.meta.reached));
   const all=S.entries.filter(good), older=all.filter(e=>dayKey(e.date)!==dayKey(new Date()));
   return older.length?older:all;
 }
@@ -1640,55 +1640,80 @@ function ordAction(a,b){
   else if(a==="ord-cancel-yes"){ S.ord=null; ui.ordConfirmCancel=false; save(); render(); }
 }
 
-/* ---------- Wohin geht's? (Etappe 12.9: ein Bildschirm) ---------- */
+/* ---------- Wohin geht's? (Etappe 12.8, Ziele seit 12.9) ---------- */
 function wohBar(back){ return `<div class="bar"><button class="back" data-act="${back?"woh-home":"go"}" data-to="#/">‹ ${back?"Wohin geht's?":"Kompass"}</button><span class="kicker">${back?"":"Wohin geht's?"}</span><button class="pill" data-act="go" data-to="#/pause">Pause</button></div>`; }
 function screenWohin(){
   const v=ui.wohView||"main";
+  if(v==="hob") return screenHob();
   if(v==="hobdone") return screenHobDone();
+  if(v==="goals") return screenGoals();
+  if(v==="goaledit") return screenGoalEdit();
+  if(v==="goalstep") return screenGoalStep();
+  if(v==="goalkeep") return screenGoalKeep();
   if(v==="look") return `${wohBar(1)}<h1>Statistik</h1>
-    <div class="muted" style="line-height:1.45;margin-top:-8px">Dein Rückblick auf das, was läuft. Alles Einzelne findest du auch im Journal.</div>
-    ${hobStatCard()}`;
+    <div class="muted" style="line-height:1.45;margin-top:-8px">Dein Rückblick auf das, was läuft, und auf deine Ziele. Alles Einzelne findest du auch im Journal.</div>
+    ${hobStatCard()}
+    ${goalStatCard()}`;
   return `${wohBar()}<h1>Wohin geht's?</h1>
-    <div class="muted" style="line-height:1.45;margin-top:-8px">Was du regelmäßig pflegst. Du tippst nur, wenn du es gemacht hast. Eine leere Woche ist einfach eine leere Woche.</div>
-    ${hobList()}
-    <button class="path look" data-act="woh-view" data-v="look"><span class="k">Bewusst hinschauen</span><span class="t">Statistik</span><span class="d">Dein Rückblick auf das, was läuft. Nur, wenn du gerade magst.</span></button>`;
+    <div class="muted" style="line-height:1.45;margin-top:-8px">Was du regelmäßig pflegst und wohin du unterwegs bist.</div>
+    ${hobTile()}
+    ${goalTile()}
+    <button class="path look" data-act="woh-view" data-v="look"><span class="k">Bewusst hinschauen</span><span class="t">Statistik</span><span class="d">Dein Rückblick auf das, was läuft, und deine erreichten Ziele. Nur, wenn du gerade magst.</span></button>`;
 }
 function wohAction(a,b){
-  if(a==="woh-home"){ ui.wohView="main"; ui.hobDone=null; render(); window.scrollTo(0,0); }
+  if(a==="woh-home"){ ui.wohView="main"; ui.hobDone=null; ui.goalDone=null; render(); window.scrollTo(0,0); }
   else if(a==="woh-view"){ ui.wohView=b.dataset.v; render(); window.scrollTo(0,0); }
 }
 
-/* ---------- Freude: Hobbys & Aktivitäten (Etappe 12.5) ---------- */
+/* ---------- Was läuft (früher Freude: Hobbys & Aktivitäten, Etappe 12.5) ---------- */
 const HOB_MILES = [1,5,10,25,50,100,150,200,300,400,500];
 const HOB_MOODS = [["😐","kaum"],["🙂","etwas"],["😊","gut"],["😄","sehr"],["🤩","riesig"]];
 function hobS(){ const F=frS(); if(!F.hob) F.hob=[]; return F.hob; }
 function hobWeekStart(){ const x=new Date(); x.setHours(0,0,0,0); x.setDate(x.getDate()-((x.getDay()+6)%7)); return x.getTime(); }
-function hobWeek(h){ const ws=hobWeekStart(); return h.log.filter(l=>new Date(l.date).getTime()>=ws).length; }
+function hobMonthStart(){ const x=new Date(); return new Date(x.getFullYear(), x.getMonth(), 1).getTime(); }
+function hobIsMonth(h){ return h.unit==="m"; }
+function hobCount(h){ const s=hobIsMonth(h)?hobMonthStart():hobWeekStart(); return h.log.filter(l=>new Date(l.date).getTime()>=s).length; }
+function hobRhythm(h){ return hobIsMonth(h) ? `${h.per}× im Monat` : `${h.per}× pro Woche`; }
+function hobPeriod(h, cap){ const t=hobIsMonth(h)?"diesen Monat":"diese Woche"; return cap? t[0].toUpperCase()+t.slice(1) : t; }
 function hobToday(h){ return h.log.find(l=>dKey(l.date)===dShift(0)); }
 function hobDots(n,k){ let o=""; for(let i=0;i<Math.max(n,k);i++) o+=`<span aria-hidden="true" style="display:inline-block;width:14px;height:14px;border-radius:7px;margin-right:2px;${i<n?"background:var(--accent)":"border:1.5px solid var(--accent)"}"></span>`; return o; }
+function hobTile(){
+  const H=hobS();
+  const d=H.length ? H.map(h=>`${esc(h.name)}: ${hobCount(h)} von ${h.per} ${hobPeriod(h)}`).join(" · ")
+    : "Was du regelmäßig pflegen möchtest: Sport, Hobbys, Menschen. Halte fest, wenn du es gemacht hast.";
+  return `<button class="path" data-act="woh-view" data-v="hob"><span class="k">Regelmäßig</span><span class="t">Was läuft</span><span class="d">${d}</span></button>`;
+}
 function hobCard(h){
-  const n=hobWeek(h), t=hobToday(h);
+  const n=hobCount(h), t=hobToday(h), g=h.goal && goalS().find(x=>x.id===h.goal && !x.reached);
   return `<div class="card" style="gap:8px">
-    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><h2 style="font-size:21px">${esc(h.name)}</h2><span class="small muted">${h.per}× pro Woche</span></div>
-    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${hobDots(n,h.per)}<span class="small" style="margin-left:4px">Diese Woche: ${n} von ${h.per}</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><h2 style="font-size:21px">${esc(h.name)}</h2><span class="small muted">${hobRhythm(h)}</span></div>
+    ${g?`<div class="small muted" style="margin-top:-4px">für: ${esc(g.name)}</div>`:""}
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${hobDots(n,h.per)}<span class="small" style="margin-left:4px">${hobPeriod(h,1)}: ${n} von ${h.per}</span></div>
     ${t ? `<div class="small">Heute: <b>gemacht ✓</b> <button class="linkbtn" style="min-height:32px" data-act="hob-undo" data-v="${h.id}">ändern</button></div>`
         : `<button class="btn sm" style="align-self:flex-start" data-act="hob-done" data-v="${h.id}">Heute gemacht</button>`}
     <button class="linkbtn" style="align-self:flex-start;min-height:32px;padding:0;text-decoration:none;color:var(--muted);font-size:14px" data-act="hob-del" data-v="${h.id}">${ui.hobDel===h.id?"Wirklich entfernen? Deine Journal-Einträge bleiben.":"Entfernen"}</button>
   </div>`;
 }
-function hobList(){
-  const H=hobS(), per=ui.hobPer||1;
-  return `${H.map(hobCard).join("")}
-    <div class="card"><div class="kicker">Etwas hinzufügen, das du regelmäßig pflegst</div>
-      <input class="t" id="hobNew" maxlength="40" autocomplete="off" placeholder="z. B. Taekwondo, Radfahren" value="${esc(ui.hobName||"")}">
-      <div class="small" style="font-weight:600;margin-top:4px">Wie oft pro Woche möchtest du es?</div>
-      <div class="chips">${[1,2,3,4,5,6,7].map(k=>`<button class="chip ${per===k?"on":""}" data-act="hob-per" data-v="${k}" aria-pressed="${per===k}">${k}×</button>`).join("")}</div>
+function screenHob(){
+  const H=hobS(), per=ui.hobPer||1, unit=ui.hobUnit||"w", g=ui.hobGoal && goalS().find(x=>x.id===ui.hobGoal);
+  const chip=(k,u)=>{ const on=per===k&&unit===u; return `<button class="chip ${on?"on":""}" data-act="hob-per" data-v="${k}" data-k="${u}" aria-pressed="${on}">${k}×</button>`; };
+  return `${wohBar(1)}<h1>Was läuft</h1>
+    <div class="muted" style="line-height:1.45;margin-top:-8px">Du tippst nur, wenn du es gemacht hast. Eine leere Woche ist einfach eine leere Woche.</div>
+    ${H.map(hobCard).join("")}
+    <div class="card" id="hobForm"><div class="kicker">Etwas hinzufügen, das du regelmäßig pflegst</div>
+      ${g?`<div class="small muted">für dein Ziel: <b>${esc(g.name)}</b> <button class="linkbtn" style="min-height:32px" data-act="hob-nogoal">ohne Ziel</button></div>`:""}
+      <input class="t" id="hobNew" maxlength="40" autocomplete="off" placeholder="z. B. Taekwondo, Freunde treffen" value="${esc(ui.hobName||"")}">
+      <div class="small" style="font-weight:600;margin-top:4px">Wie oft?</div>
+      <div class="small muted">pro Woche</div>
+      <div class="chips">${[1,2,3,4,5,6,7].map(k=>chip(k,"w")).join("")}</div>
+      <div class="small muted">pro Monat</div>
+      <div class="chips">${[1,2].map(k=>chip(k,"m")).join("")}</div>
       <div id="hobErr" class="small" style="color:var(--danger);min-height:18px"></div>
       <button class="btn sm" style="align-self:flex-start" data-act="hob-add">Hinzufügen</button></div>`;
 }
 function screenHobDone(){
   const D=ui.hobDone, h=D&&hobS().find(x=>x.id===D.hid);
-  if(!h){ ui.wohView="main"; return screenWohin(); }
+  if(!h){ ui.wohView="hob"; return screenHob(); }
   return `${wohBar(1)}<h1>${esc(h.name)} · gemacht</h1>
     <div class="card" style="align-items:center;text-align:center;gap:4px">${D.mile?`<div class="kicker">Das ${D.mile}. Mal · steht im Journal</div>`:""}<div style="font-size:17px">Schön, dass du dir das gegönnt hast.</div></div>
     <div class="card"><h2 style="font-size:21px">Wie war's?</h2><div class="small muted">Freiwillig.</div>
@@ -1714,12 +1739,13 @@ function hobAction(a,b){
   const v=b.dataset.v, keepName=()=>{ const f=document.getElementById("hobNew"); if(f) ui.hobName=f.value; };
   const keepNote=()=>{ const f=document.getElementById("hobNote"); if(f&&ui.hobDone) ui.hobDone.note=f.value; };
   const top=()=>{ render(); window.scrollTo(0,0); };
-  if(a==="hob-per"){ keepName(); ui.hobPer=+v; render(); }
+  if(a==="hob-per"){ keepName(); ui.hobPer=+v; ui.hobUnit=b.dataset.k||"w"; render(); }
+  else if(a==="hob-nogoal"){ keepName(); ui.hobGoal=null; render(); }
   else if(a==="hob-add"){
     const n=document.getElementById("hobNew").value.trim();
     if(!n){ document.getElementById("hobErr").textContent="Gib dem Ganzen einen Namen."; return; }
-    hobS().push({ id:uid(), name:n, per:ui.hobPer||1, created:new Date().toISOString(), log:[] });
-    ui.hobName=""; ui.hobPer=1; save(); toast("Hinzugefügt."); render();
+    hobS().push({ id:uid(), name:n, per:ui.hobPer||1, unit:ui.hobUnit||"w", goal:ui.hobGoal||null, created:new Date().toISOString(), log:[] });
+    ui.hobName=""; ui.hobPer=1; ui.hobUnit="w"; ui.hobGoal=null; save(); toast("Hinzugefügt."); render();
   }
   else if(a==="hob-done"){
     const h=hobS().find(x=>x.id===v); if(!h) return;
@@ -1735,14 +1761,138 @@ function hobAction(a,b){
       const note=(D.note||"").trim();
       if(note) addEntry({ area:"wohin", title:h.name, text:note+(l.mood?`\n${HOB_MOODS[l.mood-1][0]} ${HOB_MOODS[l.mood-1][1]}`:""), meta:{ hobby:h.id, hobbyLog:l.id } });
       save(); toast(note?"Im Journal festgehalten.":"Eingetragen."); }
-    ui.hobDone=null; ui.wohView="main"; top();
+    ui.hobDone=null; ui.wohView="hob"; top();
   }
-  else if(a==="hob-skip"){ ui.hobDone=null; ui.wohView="main"; toast("Eingetragen."); top(); }
+  else if(a==="hob-skip"){ ui.hobDone=null; ui.wohView="hob"; toast("Eingetragen."); top(); }
   else if(a==="hob-undo"){
     const h=hobS().find(x=>x.id===v), t=h&&hobToday(h); if(!t) return;
     h.log=h.log.filter(x=>x.id!==t.id); S.entries=S.entries.filter(e=>!(e.meta&&e.meta.hobbyLog===t.id&&e.meta.count)); save(); render();
   }
   else if(a==="hob-del"){ if(ui.hobDel===v){ frS().hob=hobS().filter(x=>x.id!==v); ui.hobDel=null; save(); } else ui.hobDel=v; render(); }
+}
+
+/* ---------- Ziele (Etappe 12.9) ---------- */
+function goalS(){ if(!Array.isArray(S.goals)) S.goals=[]; return S.goals; }
+function goalActive(){ return goalS().filter(g=>!g.reached); }
+function goalTile(){
+  const G=goalActive(), next=G.find(g=>g.step);
+  const d=G.length ? `${G.length===1?"1 Ziel":G.length+" Ziele"} unterwegs${next?` · als Nächstes: ${esc(next.step.text)}`:""}`
+    : "Etwas erreichen, Schritt für Schritt. Immer nur der nächste kleine Schritt ist sichtbar.";
+  return `<button class="path" data-act="woh-view" data-v="goals"><span class="k">Mit einem Ende</span><span class="t">Ziele</span><span class="d">${d}</span></button>`;
+}
+function goalCard(g){
+  return `<div class="card" style="gap:6px">
+    <h2 style="font-size:21px">${esc(g.name)}</h2>
+    ${g.why?`<div class="small muted" style="font-style:italic;line-height:1.4">Wofür: ${esc(g.why)}</div>`:""}
+    ${g.step ? `<div class="soft" style="margin-top:4px"><div class="kicker">Nächster Schritt</div><div style="color:var(--ink);font-size:16px">${esc(g.step.text)}</div></div>`
+             : `<div class="soft" style="margin-top:4px">Noch kein nächster Schritt.</div>`}
+    <div class="row" style="margin-top:4px">
+      ${g.step ? `<button class="btn sm" data-act="goal-step" data-v="${g.id}">Schritt erledigt</button>` : `<button class="btn sm" data-act="goal-setstep" data-v="${g.id}">Schritt eintragen</button>`}
+      <button class="btn sm quiet" data-act="goal-reach" data-v="${g.id}">${ui.goalReach===g.id?"Wirklich erreicht?":"Ziel erreicht"}</button>
+    </div>
+    <div class="row" style="gap:14px;flex-wrap:wrap">
+      <button class="linkbtn" style="min-height:32px;padding:0" data-act="goal-hob" data-v="${g.id}">Dafür regelmäßig dranbleiben</button>
+      <button class="linkbtn" style="min-height:32px;padding:0" data-act="goal-edit" data-v="${g.id}">Ändern</button>
+      <button class="linkbtn" style="min-height:32px;padding:0;text-decoration:none;color:var(--muted);font-size:14px" data-act="goal-del" data-v="${g.id}">${ui.goalDel===g.id?"Wirklich entfernen?":"Entfernen"}</button>
+    </div>
+  </div>`;
+}
+function screenGoals(){
+  const G=goalActive();
+  return `${wohBar(1)}<h1>Ziele</h1>
+    <div class="muted" style="line-height:1.45;margin-top:-8px">Immer nur der nächste kleine Schritt.</div>
+    ${G.length ? G.map(goalCard).join("") : `<div class="soft">Noch kein Ziel. Ein Ziel hat ein Ende: Man kann es erreichen und abhaken.</div>`}
+    <button class="btn line" data-act="goal-new">+ Neues Ziel</button>`;
+}
+function screenGoalEdit(){
+  const g=ui.goalEdit && goalS().find(x=>x.id===ui.goalEdit), d=ui.goalDraft||{};
+  return `${wohBar(1)}<h1>${g?"Ziel ändern":"Neues Ziel"}</h1>
+    <div class="card"><div class="kicker">Was möchtest du erreichen?</div>
+      <input class="t" id="goalName" maxlength="80" autocomplete="off" placeholder="z. B. Alle Poomse wieder können" value="${esc(d.name??(g?g.name:""))}"></div>
+    <div class="card"><div class="kicker">Wofür ist dir das wichtig? <span class="muted">(freiwillig)</span></div>
+      <textarea class="t" id="goalWhy" rows="2" placeholder="z. B. Körper, Gedächtnis und Gedanken in Einklang">${esc(d.why??(g?g.why||"":""))}</textarea></div>
+    ${g?"":`<div class="card"><div class="kicker">Der erste kleine Schritt <span class="muted">(freiwillig)</span></div>
+      <input class="t" id="goalStep" maxlength="120" autocomplete="off" placeholder="Klein genug für diese Woche" value="${esc(d.step||"")}"></div>`}
+    <div id="goalErr" class="small" style="color:var(--danger);min-height:18px"></div>
+    <button class="btn" data-act="goal-save">Speichern</button>
+    <button class="linkbtn" data-act="goal-list">Abbrechen</button>`;
+}
+function screenGoalStep(){
+  const D=ui.goalDone, g=D&&goalS().find(x=>x.id===D.gid);
+  if(!g){ ui.wohView="goals"; return screenGoals(); }
+  return `${wohBar(1)}<h1>${D.done?"Schritt geschafft":"Nächster Schritt"}</h1>
+    ${D.done?`<div class="card" style="align-items:center;text-align:center;gap:4px"><div class="kicker">${esc(g.name)}</div><div style="font-size:17px">„${esc(D.done)}“ – erledigt. Schön!</div></div>`:`<div class="card" style="gap:4px"><div class="kicker">${esc(g.name)}</div></div>`}
+    <div class="card"><h2 style="font-size:21px">Was ist der nächste kleine Schritt?</h2>
+      <input class="t" id="goalNext" maxlength="120" autocomplete="off" placeholder="Klein genug für diese Woche">
+      <div id="goalErr" class="small" style="color:var(--danger);min-height:18px"></div></div>
+    <button class="btn" data-act="goal-next">Speichern</button>
+    ${D.done?`<button class="linkbtn" data-act="goal-later">Später überlegen</button>
+    <button class="linkbtn" data-act="goal-reachnow">Das Ziel ist erreicht 🎉</button>`:`<button class="linkbtn" data-act="goal-list">Abbrechen</button>`}`;
+}
+function screenGoalKeep(){
+  const g=ui.goalKeep && goalS().find(x=>x.id===ui.goalKeep);
+  const H=g ? hobS().filter(h=>h.goal===g.id) : [];
+  if(!g || !H.length){ ui.wohView="goals"; return screenGoals(); }
+  const h=H[0];
+  return `${wohBar(1)}<h1>Glückwunsch!</h1>
+    <div class="card" style="align-items:center;text-align:center;gap:4px"><div class="kicker">Ziel erreicht · steht im Journal</div><div style="font-size:17px">${esc(g.name)}</div></div>
+    <div class="card"><h2 style="font-size:21px">„${esc(h.name)}“ weiter pflegen?</h2>
+      <div class="small muted">Das hast du für dieses Ziel regelmäßig gemacht.</div>
+      <div class="row" style="margin-top:6px"><button class="btn sm" data-act="goal-keep" data-v="${h.id}">Ja, weiter pflegen</button><button class="btn sm quiet" data-act="goal-drop" data-v="${h.id}">Nein, beenden</button></div></div>`;
+}
+function goalReach(g){
+  g.reached=new Date().toISOString(); g.step=null;
+  addEntry({ area:"wohin", title:"Ziel erreicht", text:g.name+(g.why?`\nWofür: ${g.why}`:""), meta:{ goal:g.id, reached:true } });
+  save();
+  if(hobS().some(h=>h.goal===g.id)){ ui.goalKeep=g.id; ui.wohView="goalkeep"; }
+  else { ui.wohView="goals"; toast("Glückwunsch! Steht im Journal."); }
+  render(); window.scrollTo(0,0);
+}
+function goalStatCard(){
+  const G=goalS();
+  if(!G.length) return `<div class="card"><div class="kicker">Ziele</div><div class="muted small" style="line-height:1.45">Wenn du Ziele anlegst und Schritte gehst, siehst du hier, was du schon erreicht hast.</div></div>`;
+  const day=d=>new Date(d).toLocaleDateString("de-DE",{day:"numeric",month:"long",year:"numeric"});
+  const R=G.filter(g=>g.reached).sort((a,b)=>b.reached.localeCompare(a.reached)), A=G.filter(g=>!g.reached);
+  const n=g=>(g.done||[]).length, st=k=>k===1?"1 Schritt":k+" Schritte";
+  return `<div class="card" style="gap:0"><div class="kicker" style="margin-bottom:6px">Ziele</div>
+    ${R.map(g=>`<div style="display:flex;flex-direction:column;gap:2px;padding:10px 0;border-top:1px solid var(--line)"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(g.name)} ✓</b></div><div class="small muted">Erreicht am ${day(g.reached)} · ${st(n(g))}</div></div>`).join("")}
+    ${A.map(g=>`<div style="display:flex;flex-direction:column;gap:2px;padding:10px 0;border-top:1px solid var(--line)"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(g.name)}</b></div><div class="small muted">Unterwegs seit ${day(g.created)} · ${st(n(g))} geschafft</div></div>`).join("")}
+  </div>`;
+}
+function goalAction(a,b){
+  const v=b.dataset.v, g=v && goalS().find(x=>x.id===v), top=()=>{ render(); window.scrollTo(0,0); };
+  const err=m=>{ const e=document.getElementById("goalErr"); if(e) e.textContent=m; };
+  if(a!=="goal-reach") ui.goalReach=null;
+  if(a!=="goal-del") ui.goalDel=null;
+  if(a==="goal-list"){ ui.wohView="goals"; ui.goalDraft=null; ui.goalDone=null; top(); }
+  else if(a==="goal-new"){ ui.goalEdit=null; ui.goalDraft=null; ui.wohView="goaledit"; top(); }
+  else if(a==="goal-edit"){ ui.goalEdit=v; ui.goalDraft=null; ui.wohView="goaledit"; top(); }
+  else if(a==="goal-save"){
+    const name=document.getElementById("goalName").value.trim(), why=document.getElementById("goalWhy").value.trim(), sf=document.getElementById("goalStep"), step=sf?sf.value.trim():"";
+    if(!name){ err("Gib deinem Ziel einen Namen."); return; }
+    const e=ui.goalEdit && goalS().find(x=>x.id===ui.goalEdit);
+    if(e){ e.name=name; e.why=why; }
+    else goalS().push({ id:uid(), name, why, created:new Date().toISOString(), step:step?{ text:step, created:new Date().toISOString() }:null, done:[], reached:null });
+    ui.goalEdit=null; ui.goalDraft=null; save(); toast(e?"Geändert.":"Dein Ziel ist angelegt."); ui.wohView="goals"; top();
+  }
+  else if(a==="goal-step" && g && g.step){
+    g.done=(g.done||[]).concat([{ text:g.step.text, date:new Date().toISOString() }]);
+    ui.goalDone={ gid:g.id, done:g.step.text }; g.step=null; save(); ui.wohView="goalstep"; top();
+  }
+  else if(a==="goal-setstep" && g){ ui.goalDone={ gid:g.id, done:null }; ui.wohView="goalstep"; top(); }
+  else if(a==="goal-next"){
+    const t=document.getElementById("goalNext").value.trim(), G=ui.goalDone && goalS().find(x=>x.id===ui.goalDone.gid);
+    if(!t){ err("Schreib den Schritt in ein paar Worten auf."); return; }
+    if(G){ G.step={ text:t, created:new Date().toISOString() }; save(); toast("Gespeichert."); }
+    ui.goalDone=null; ui.wohView="goals"; top();
+  }
+  else if(a==="goal-later"){ ui.goalDone=null; ui.wohView="goals"; top(); }
+  else if(a==="goal-reachnow"){ const G=ui.goalDone && goalS().find(x=>x.id===ui.goalDone.gid); ui.goalDone=null; if(G) goalReach(G); }
+  else if(a==="goal-reach" && g){ if(ui.goalReach===v){ ui.goalReach=null; goalReach(g); } else { ui.goalReach=v; render(); } }
+  else if(a==="goal-del" && g){ if(ui.goalDel===v){ S.goals=goalS().filter(x=>x.id!==v); hobS().forEach(h=>{ if(h.goal===v) h.goal=null; }); ui.goalDel=null; save(); } else ui.goalDel=v; render(); }
+  else if(a==="goal-hob" && g){ ui.hobGoal=g.id; ui.hobName=g.name; ui.hobPer=1; ui.hobUnit="w"; ui.wohView="hob"; render(); const f=document.getElementById("hobForm"); if(f) f.scrollIntoView({block:"center"}); }
+  else if(a==="goal-keep"){ const h=hobS().find(x=>x.id===v); if(h) h.goal=null; save(); toast("Bleibt bei „Was läuft“."); ui.goalKeep=null; ui.wohView="goals"; top(); }
+  else if(a==="goal-drop"){ frS().hob=hobS().filter(x=>x.id!==v); save(); toast("Beendet. Deine Journal-Einträge bleiben."); ui.goalKeep=null; ui.wohView="goals"; top(); }
 }
 
 /* ---------- Gewohnheiten loslassen (Etappe 7) ---------- */
@@ -1902,7 +2052,7 @@ function render(){
   if(h==="#/bereich/loslassen") losAfterRender();
 }
 let lastRoute = "#/";
-window.addEventListener("hashchange", ()=>{ ui.confirmDel=null; ui.confirmWipe=false; ui.losBackfill=false; ui.losConfirmDiscard=false; ui.erkConfirmCancel=false; ui.ordConfirmCancel=false; ui.losView=ui.losGoFeel?"feel":null; ui.losGoFeel=false; ui.habDel=null; ui.intView="map"; ui.intPick=null; ui.memId=null; ui.memNone=false; ui.erkThemes=false; ui.frView="main"; ui.wohView="main"; render(); window.scrollTo(0,0); });
+window.addEventListener("hashchange", ()=>{ ui.confirmDel=null; ui.confirmWipe=false; ui.losBackfill=false; ui.losConfirmDiscard=false; ui.erkConfirmCancel=false; ui.ordConfirmCancel=false; ui.losView=ui.losGoFeel?"feel":null; ui.losGoFeel=false; ui.habDel=null; ui.intView="map"; ui.intPick=null; ui.memId=null; ui.memNone=false; ui.erkThemes=false; ui.frView="main"; ui.wohView="main"; ui.goalReach=null; ui.goalDel=null; ui.hobGoal=null; render(); window.scrollTo(0,0); });
 
 function startBreath(){
   const b=document.getElementById("breath"), t=document.getElementById("breathTxt");
@@ -1971,6 +2121,12 @@ function importRest(d){
     if(k) more.push(k===1?"1 Hobby":k+" Hobbys");
     else if(l) more.push("Einträge bei Hobbys");
   }
+  // Ziele: fehlende Ziele dazu, Vorhandenes bleibt
+  if(Array.isArray(d.goals)){
+    const G=goalS(), have=new Set(G.map(g=>g.id)); let k=0;
+    d.goals.forEach(g=>{ if(isObj(g) && g.id && !have.has(g.id)){ const c=copy(g); if(!Array.isArray(c.done)) c.done=[]; G.push(c); k++; } });
+    if(k) more.push(k===1?"1 Ziel":k+" Ziele");
+  }
   // Eigene Gefühls- und Körperwörter: zusammenführen, eigene zuerst
   let w=false;
   ["myFeelings","myBody"].forEach(f=>{ if(Array.isArray(d[f])){ const before=(S[f]||[]).length; S[f]=uniqCI((S[f]||[]).concat(d[f].filter(x=>typeof x==="string"))).slice(0,8); if(S[f].length>before) w=true; } });
@@ -2030,6 +2186,7 @@ app.addEventListener("click", e=>{
   else if(a.startsWith("int-")) intAction(a,b);
   else if(a.startsWith("hob-")) hobAction(a,b);
   else if(a.startsWith("woh-")) wohAction(a,b);
+  else if(a.startsWith("goal-")) goalAction(a,b);
   else if(a.startsWith("fr-")) frAction(a,b);
   else if(a==="export") doExport();
   else if(a==="snooze"){ S.backupSnooze=new Date().toISOString(); save(); render(); }
