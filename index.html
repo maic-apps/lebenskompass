@@ -131,7 +131,7 @@ button.entry{font:inherit;color:inherit}
 "use strict";
 /* ---------- Daten ---------- */
 const KEY = "lebenskompass.v1";
-const VERSION = "Etappe 13.0";
+const VERSION = "Etappe 13.3";
 const DIRS = {
   erkennen:  { name:"Erkennen",  pos:"n", rot:0,   kicker:"Oben · Beginn", text:"Was hält dich ab? Oder: Was Altes kommt hoch und will eingeordnet werden?", cta:"Starten" },
   loslassen: { name:"Loslassen", pos:"e", rot:90,  kicker:"Rechts", text:"Ein Gefühl in Runden loslassen, oder abhaken, dass du heute ohne eine ungeliebte Gewohnheit ausgekommen bist.", cta:"Öffnen" },
@@ -741,6 +741,7 @@ function erkOptions(E){ return E.options.split(/\n|;/).map(s=>s.replace(/^[-•*
 function screenErk(){
   const E=S.erk;
   if(S.ein) return screenEin();
+  if(S.exp) return screenExp();
   if(S.ord){ ui.erkThemes=false; return screenOrd(); }
   if(!E) return ui.erkThemes ? screenErkThemes() : screenErkDoors();
   if(false){
@@ -1072,6 +1073,9 @@ function screenInt(){
       ${sel.id==="ferne"?`<div class="small" style="font-weight:600;margin-top:8px">Deine Traumziele</div>
         <div class="chips">${I.dreams.map(d=>`<span class="chip dream">${esc(d)}<button class="x" data-act="int-dream-del" data-v="${esc(d)}" aria-label="${esc(d)} entfernen">×</button></span>`).join("")}</div>
         <div class="row" style="flex-wrap:nowrap"><input class="t" id="intDream" maxlength="30" placeholder="Neues Traumziel" style="height:44px"><button class="btn sm line" data-act="int-dream-add">Dazu</button></div>`:""}
+      ${(()=>{ const L=(I.liked||[]).filter(x=>x.ref.split(":")[0]===sel.id && CARDS[sel.id] && CARDS[sel.id][+x.ref.split(":")[1]]!==undefined).sort((a,b)=>b.date.localeCompare(a.date));
+        return L.length?`<details style="margin-top:6px"><summary class="small" style="cursor:pointer;min-height:36px;display:flex;align-items:center;font-weight:600;color:var(--accent)">Was mich hier angezogen hat (${L.length})</summary>
+          <div style="display:flex;flex-direction:column;gap:0;margin-top:4px">${L.map(x=>`<div style="padding:8px 0;border-top:1px solid var(--line);line-height:1.4">${esc(cardText(x.ref))}<div class="small muted">${shortDate(x.date)}${x.mode?` · reizt mich: ${esc(MODES[x.mode]||x.mode)}`:""}</div></div>`).join("")}</div></details>`:""; })()}
       <button class="btn sm" style="align-self:flex-start;margin-top:8px" data-act="int-exp" data-v="${sel.id}">Expedition</button></div>`;
   }
   return `${intBar()}
@@ -1124,7 +1128,9 @@ function screenIntRound(){
   const list=Object.entries(byIsle).sort((a,b)=>b[1]-a[1]);
   return `${intBar("map")}<div class="kicker">Runde geschafft</div>
     <h1>${hits.length ? "Hier hat sich der Nebel gelichtet" : "Heute hat nichts gezogen"}</h1>
-    ${hits.length ? `<div class="card">${list.map(([id,n])=>`<div style="display:flex;justify-content:space-between;gap:8px;min-height:32px;align-items:center"><span>${esc(isleById(id).name)}</span><span class="kicker">${n}× zieht an</span></div>`).join("")}</div>`
+    ${hits.length ? `<div class="card">${list.map(([id,n])=>`<div style="display:flex;justify-content:space-between;gap:8px;min-height:32px;align-items:center"><span>${esc(isleById(id).name)}</span><span class="kicker">${n}× zieht an</span></div>`).join("")}</div>
+      <div class="card" style="gap:0"><div class="kicker" style="margin-bottom:4px">Das hat dich angezogen</div>${hits.map(r=>`<div style="padding:8px 0;border-top:1px solid var(--line);line-height:1.4">${esc(cardText(r))}<div class="small muted">${esc(isleById(r.split(":")[0]).name)}</div></div>`).join("")}
+        <div class="small muted" style="padding-top:8px">Gespeichert. Du findest diese Karten jederzeit auf deiner Entdeckerkarte bei der jeweiligen Insel.</div></div>`
       : `<div class="muted" style="line-height:1.45">Auch das ist eine Auskunft. Manchmal braucht Neugier einfach einen anderen Tag.</div>`}
     <button class="btn" data-act="int-round-close">Zur Karte</button>`;
 }
@@ -1188,12 +1194,12 @@ function intAction(a,b){
   else if(a==="int-round"){ I.round={ ids:intPickRound(), i:0, hits:[], reflect:0 }; save(); render(); window.scrollTo(0,0); }
   else if(a==="int-card"){
     const R=I.round, ref=R.ids[R.i], id=ref.split(":")[0];
-    if(v==="1"){ R.hits.push(ref); I.hits[id]=(I.hits[id]||0)+1; }
+    if(v==="1"){ R.hits.push(ref); I.hits[id]=(I.hits[id]||0)+1; if(!Array.isArray(I.liked)) I.liked=[]; I.liked.push({ ref, date:new Date().toISOString(), mode:null }); }
     if(!I.seen.includes(ref)) I.seen.push(ref);
     R.i++; save(); render();
   }
   else if(a==="int-round-end"){ I.round.ids=I.round.ids.slice(0,I.round.i); save(); render(); }
-  else if(a==="int-mode"){ const R=I.round; if(v) I.modes[v]=(I.modes[v]||0)+1; R.reflect=(R.reflect||0)+1; save(); render(); }
+  else if(a==="int-mode"){ const R=I.round; if(v){ I.modes[v]=(I.modes[v]||0)+1; const ref=R.hits[R.reflect||0], L=(I.liked||[]).filter(x=>x.ref===ref).pop(); if(L) L.mode=v; } R.reflect=(R.reflect||0)+1; save(); render(); }
   else if(a==="int-round-close"){ I.rounds=(I.rounds||0)+1; I.round=null; ui.intView="map"; save(); render(); window.scrollTo(0,0); }
   else if(a==="int-dream-add"){ const f=document.getElementById("intDream"); const d=f.value.trim(); if(d && !I.dreams.some(x=>x.toLowerCase()===d.toLowerCase())){ I.dreams.push(d); save(); } render(); }
   else if(a==="int-dream-del"){ I.dreams=I.dreams.filter(x=>x!==v); save(); render(); }
@@ -1485,12 +1491,17 @@ function screenErkDoors(){
     <button class="path" data-act="ein-start"><span class="k">Eine Einsicht</span><span class="t">Mir ist etwas klar geworden</span><span class="d">Ein Aha-Moment über dich oder dein Leben. Vier kurze Fragen, dann entscheidest du, was du damit tust.</span></button>
     <button class="path" data-act="erk-start"><span class="k">Nach vorn schauen</span><span class="t">Etwas hält mich ab</span><span class="d">Ein Wunsch, und etwas bremst dich. Bis zu sieben Fragen zu Wunsch, Bremse und Erlaubnis. Was nicht passt, überspringst du.</span></button>
     <button class="path" data-act="ord-start"><span class="k">Zurück schauen</span><span class="t">Etwas Altes kommt hoch</span><span class="d">Eine alte Geschichte, die immer wieder anklopft. Einordnen, würdigen, Frieden finden.</span></button>
+    <button class="path" data-act="exp-start"><span class="k">Nach einem Gespräch</span><span class="t">Ordnung und Erklärung</span><span class="d">Wenn du merkst, dass du gerade viel erklärst. Fünf kurze Fragen, die Antworten gehen ins Journal.</span></button>
     <button class="path look" data-act="erk-themes"><span class="k">Bewusst hinschauen</span><span class="t">Statistik</span><span class="d">Dein Rückblick auf das Erkennen. Nur, wenn du gerade magst.</span></button>`;
 }
 function screenErkThemes(){
   const T=ordThemes();
   return `${erkBar()}<h1>Statistik</h1>
     <div class="muted" style="line-height:1.45;margin-top:-8px">Mit der Zeit siehst du, wie sie leiser werden. Tippe auf ein Thema, um es noch einmal einzuordnen.</div>
+    ${(()=>{ const cut=Date.now()-30*864e5; const X=S.entries.filter(e=>e.meta&&e.meta.kind==="ordnung"&&new Date(e.date).getTime()>=cut);
+      if(!X.length) return `<div class="soft small">Ordnung und Erklärung: noch keine Einträge in den letzten 30 Tagen.</div>`;
+      const yes=X.filter(e=>e.meta.asked==="Ja").length, no=X.filter(e=>e.meta.asked==="Nein").length, idk=X.length-yes-no;
+      return `<div class="card" style="gap:6px"><div class="kicker">Ordnung und Erklärung · letzte 30 Tage</div><div>${X.length} Mal notiert</div><div class="small muted">Nach meiner Sicht gefragt: ${yes} Mal ja · ${no} Mal nein · ${idk} Mal weiß ich nicht</div></div>`; })()}
     ${T.length ? T.slice().sort((a,b)=>(b.last||"").localeCompare(a.last||"")).map(t=>`<button class="entry" style="text-align:left;width:100%;cursor:pointer" data-act="ord-start" data-v="${t.id}">
           <div class="body"><div class="title">${esc(t.name)}</div>
           ${t.feelings&&t.feelings.length?`<div class="kicker">${esc(t.feelings.join(", "))}</div>`:""}
@@ -1661,7 +1672,7 @@ function screenWohin(){
     <button class="path look" data-act="woh-view" data-v="look"><span class="k">Bewusst hinschauen</span><span class="t">Statistik</span><span class="d">Dein Rückblick auf das, was läuft, und deine erreichten Ziele. Nur, wenn du gerade magst.</span></button>`;
 }
 function wohAction(a,b){
-  if(a==="woh-home"){ ui.wohView="main"; ui.hobDone=null; ui.goalDone=null; render(); window.scrollTo(0,0); }
+  if(a==="woh-home"){ ui.wohView="main"; ui.hobDone=null; ui.goalDone=null; ui.hobIdea=null; ui.ideaFrom=null; ui.hobGoal=null; ui.hobName=""; render(); window.scrollTo(0,0); }
   else if(a==="woh-view"){ ui.wohView=b.dataset.v; render(); window.scrollTo(0,0); }
 }
 
@@ -1702,6 +1713,7 @@ function screenHob(){
     ${H.map(hobCard).join("")}
     <div class="card" id="hobForm"><div class="kicker">Etwas hinzufügen, das du regelmäßig pflegst</div>
       ${g?`<div class="small muted">für dein Ziel: <b>${esc(g.name)}</b> <button class="linkbtn" style="min-height:32px" data-act="hob-nogoal">ohne Ziel</button></div>`:""}
+      ${ui.hobIdea?`<div class="small muted">aus deinen Themen für später</div>`:""}
       <input class="t" id="hobNew" maxlength="40" autocomplete="off" placeholder="z. B. Taekwondo, Freunde treffen" value="${esc(ui.hobName||"")}">
       <div class="small" style="font-weight:600;margin-top:4px">Wie oft?</div>
       <div class="small muted">pro Woche</div>
@@ -1745,6 +1757,7 @@ function hobAction(a,b){
     const n=document.getElementById("hobNew").value.trim();
     if(!n){ document.getElementById("hobErr").textContent="Gib dem Ganzen einen Namen."; return; }
     hobS().push({ id:uid(), name:n, per:ui.hobPer||1, unit:ui.hobUnit||"w", goal:ui.hobGoal||null, created:new Date().toISOString(), log:[] });
+    if(ui.hobIdea){ S.ideas=ideaS().filter(x=>x.id!==ui.hobIdea); ui.hobIdea=null; }
     ui.hobName=""; ui.hobPer=1; ui.hobUnit="w"; ui.hobGoal=null; save(); toast("Hinzugefügt."); render();
   }
   else if(a==="hob-done"){
@@ -1802,7 +1815,8 @@ function screenGoals(){
   return `${wohBar(1)}<h1>Ziele</h1>
     <div class="muted" style="line-height:1.45;margin-top:-8px">Immer nur der nächste kleine Schritt.</div>
     ${G.length ? G.map(goalCard).join("") : `<div class="soft">Noch kein Ziel. Ein Ziel hat ein Ende: Man kann es erreichen und abhaken.</div>`}
-    <button class="btn line" data-act="goal-new">+ Neues Ziel</button>`;
+    <button class="btn line" data-act="goal-new">+ Neues Ziel</button>
+    ${ideaBlock()}`;
 }
 function screenGoalEdit(){
   const g=ui.goalEdit && goalS().find(x=>x.id===ui.goalEdit), d=ui.goalDraft||{};
@@ -1864,7 +1878,7 @@ function goalAction(a,b){
   const err=m=>{ const e=document.getElementById("goalErr"); if(e) e.textContent=m; };
   if(a!=="goal-reach") ui.goalReach=null;
   if(a!=="goal-del") ui.goalDel=null;
-  if(a==="goal-list"){ ui.wohView="goals"; ui.goalDraft=null; ui.goalDone=null; top(); }
+  if(a==="goal-list"){ ui.wohView="goals"; ui.goalDraft=null; ui.goalDone=null; ui.ideaFrom=null; top(); }
   else if(a==="goal-new"){ ui.goalEdit=null; ui.goalDraft=null; ui.wohView="goaledit"; top(); }
   else if(a==="goal-edit"){ ui.goalEdit=v; ui.goalDraft=null; ui.wohView="goaledit"; top(); }
   else if(a==="goal-save"){
@@ -1872,7 +1886,7 @@ function goalAction(a,b){
     if(!name){ err("Gib deinem Ziel einen Namen."); return; }
     const e=ui.goalEdit && goalS().find(x=>x.id===ui.goalEdit);
     if(e){ e.name=name; e.why=why; }
-    else goalS().push({ id:uid(), name, why, created:new Date().toISOString(), step:step?{ text:step, created:new Date().toISOString() }:null, done:[], reached:null });
+    else { goalS().push({ id:uid(), name, why, created:new Date().toISOString(), step:step?{ text:step, created:new Date().toISOString() }:null, done:[], reached:null }); if(ui.ideaFrom){ S.ideas=ideaS().filter(x=>x.id!==ui.ideaFrom); ui.ideaFrom=null; } }
     ui.goalEdit=null; ui.goalDraft=null; save(); toast(e?"Geändert.":"Dein Ziel ist angelegt."); ui.wohView="goals"; top();
   }
   else if(a==="goal-step" && g && g.step){
@@ -1893,6 +1907,47 @@ function goalAction(a,b){
   else if(a==="goal-hob" && g){ ui.hobGoal=g.id; ui.hobName=g.name; ui.hobPer=1; ui.hobUnit="w"; ui.wohView="hob"; render(); const f=document.getElementById("hobForm"); if(f) f.scrollIntoView({block:"center"}); }
   else if(a==="goal-keep"){ const h=hobS().find(x=>x.id===v); if(h) h.goal=null; save(); toast("Bleibt bei „Was läuft“."); ui.goalKeep=null; ui.wohView="goals"; top(); }
   else if(a==="goal-drop"){ frS().hob=hobS().filter(x=>x.id!==v); save(); toast("Beendet. Deine Journal-Einträge bleiben."); ui.goalKeep=null; ui.wohView="goals"; top(); }
+}
+
+/* ---------- Themen für später (Etappe 13.2) ---------- */
+const IDEA_AREAS = [["bewegung","Bewegung"],["menschen","Menschen"],["schaffen","Schaffen"],["genuss","Genuss & Welt"]];
+function ideaS(){ if(!Array.isArray(S.ideas)) S.ideas=[]; return S.ideas; }
+function ideaBlock(){
+  const I=ideaS(), open=!!ui.ideasOpen, ar=ui.ideaArea||"bewegung";
+  const head=`<button class="linkbtn" style="align-self:flex-start;text-decoration:none;color:var(--accent);font-weight:600;font-size:16px;margin-top:10px" data-act="idea-toggle" aria-expanded="${open}">${open?"▾":"▸"} Themen für später${I.length?` (${I.length})`:""}</button>`;
+  if(!open) return head;
+  const groups=IDEA_AREAS.map(([k,l])=>{ const L=I.filter(x=>x.area===k); if(!L.length) return "";
+    return `<div class="card" style="gap:0"><div class="kicker" style="margin-bottom:4px">${l}</div>${L.map(x=>`<div style="padding:10px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:4px">
+      <div style="font-size:17px">${esc(x.name)}</div>
+      <div class="row" style="gap:14px;flex-wrap:wrap">
+        <button class="linkbtn" style="min-height:32px;padding:0" data-act="idea-goal" data-v="${x.id}">Zum Ziel machen</button>
+        <button class="linkbtn" style="min-height:32px;padding:0" data-act="idea-hob" data-v="${x.id}">Regelmäßig pflegen</button>
+        <button class="linkbtn" style="min-height:32px;padding:0;text-decoration:none;color:var(--muted);font-size:14px" data-act="idea-del" data-v="${x.id}">${ui.ideaDel===x.id?"Wirklich entfernen?":"Entfernen"}</button>
+      </div></div>`).join("")}</div>`; }).join("");
+  return `${head}
+    <div class="muted small" style="line-height:1.45;margin-top:-4px">Was du dir vorstellen kannst, ohne Verpflichtung. Wenn ein Thema reif ist, wird es ein Ziel oder etwas, das regelmäßig läuft.</div>
+    ${groups}
+    <div class="card"><div class="kicker">Themen hinzufügen</div>
+      <div class="chips">${IDEA_AREAS.map(([k,l])=>`<button class="chip ${ar===k?"on":""}" data-act="idea-area" data-v="${k}" aria-pressed="${ar===k}">${l}</button>`).join("")}</div>
+      <textarea class="t" id="ideaNew" rows="3" placeholder="Ein Thema pro Zeile, z. B.&#10;Salsa&#10;Tango">${esc(ui.ideaText||"")}</textarea>
+      <div id="ideaErr" class="small" style="color:var(--danger);min-height:18px"></div>
+      <button class="btn sm" style="align-self:flex-start" data-act="idea-add">Speichern</button></div>`;
+}
+function ideaAction(a,b){
+  const v=b.dataset.v, x=v && ideaS().find(i=>i.id===v), keep=()=>{ const f=document.getElementById("ideaNew"); if(f) ui.ideaText=f.value; };
+  if(a!=="idea-del") ui.ideaDel=null;
+  if(a==="idea-toggle"){ keep(); ui.ideasOpen=!ui.ideasOpen; render(); }
+  else if(a==="idea-area"){ keep(); ui.ideaArea=v; render(); }
+  else if(a==="idea-add"){
+    const lines=document.getElementById("ideaNew").value.split("\n").map(t=>t.trim()).filter(Boolean);
+    if(!lines.length){ document.getElementById("ideaErr").textContent="Schreib mindestens ein Thema auf."; return; }
+    const area=ui.ideaArea||"bewegung", have=new Set(ideaS().map(i=>i.name.toLowerCase())); let k=0;
+    lines.forEach(t=>{ if(!have.has(t.toLowerCase())){ ideaS().push({ id:uid(), name:t.slice(0,80), area, created:new Date().toISOString() }); have.add(t.toLowerCase()); k++; } });
+    ui.ideaText=""; save(); toast(k===1?"1 Thema gespeichert.":k+" Themen gespeichert."); render();
+  }
+  else if(a==="idea-goal" && x){ ui.ideaFrom=x.id; ui.goalEdit=null; ui.goalDraft={ name:x.name }; ui.wohView="goaledit"; render(); window.scrollTo(0,0); }
+  else if(a==="idea-hob" && x){ ui.hobIdea=x.id; ui.hobGoal=null; ui.hobName=x.name; ui.hobPer=1; ui.hobUnit="w"; ui.wohView="hob"; render(); const f=document.getElementById("hobForm"); if(f) f.scrollIntoView({block:"center"}); }
+  else if(a==="idea-del" && x){ if(ui.ideaDel===v){ S.ideas=ideaS().filter(i=>i.id!==v); ui.ideaDel=null; save(); } else ui.ideaDel=v; render(); }
 }
 
 /* ---------- Gewohnheiten loslassen (Etappe 7) ---------- */
@@ -2031,6 +2086,53 @@ function einAction(a,b){
   }
 }
 
+/* ---------- Erkennen, Tür 4: Ordnung und Erklärung (Etappe 13.3) ---------- */
+const EXP_Q = [
+  {k:"seen", q:"Was habe ich tatsächlich gesehen oder gehört?", ph:"Nur, was da war. Noch ohne Deutung.", rows:3},
+  {k:"asked", q:"Hat die andere Person nach meiner Sicht gefragt?", choice:true},
+  {k:"need", q:"Was brauche ich gerade: Verständnis, Nähe, Sicherheit oder Recht haben?", ph:"z. B. Verständnis", rows:2},
+  {k:"listen", q:"Was hilft, wenn ich nur zuhöre und nichts erkläre?", ph:"z. B. nachfragen, eine Pause. Oder: nichts, ich brauche Zeit.", rows:3},
+  {k:"kind", q:"Was wäre der liebevollste Umgang damit?", sub:"Als Ausrichtung für mich selbst.", ph:"", rows:3}
+];
+function expNew(){ return {begun:new Date().toISOString(), step:0, seen:"", asked:"", need:"", listen:"", kind:""}; }
+function screenExp(){
+  const E=S.exp, s=E.step, Q=EXP_Q[s];
+  const prog=`<div style="display:flex;flex-direction:column;gap:8px"><div class="steps" aria-hidden="true" style="display:grid;grid-template-columns:repeat(5,1fr)">${EXP_Q.map((_,i)=>`<i class="${i<=s?"on":""}"></i>`).join("")}</div><div class="small muted">Ordnung und Erklärung · Frage ${s+1} von 5</div></div>`;
+  const body=Q.choice
+    ? `<div style="display:flex;flex-direction:column;gap:8px">${["Ja","Nein","Weiß ich nicht"].map(o=>`<button class="chip ${E.asked===o?"on":""}" style="height:52px;border-radius:14px;font-size:16px" data-act="exp-choose" data-v="${o}" aria-pressed="${E.asked===o}">${o}</button>`).join("")}</div>`
+    : `<textarea class="t" id="erkIn" rows="${Q.rows}" placeholder="${esc(Q.ph)}">${esc(E[Q.k]||"")}</textarea>`;
+  return `${erkBar()}${prog}<h1>${esc(Q.q)}</h1>${Q.sub?`<div class="muted">${esc(Q.sub)}</div>`:""}${body}
+    <div id="erkErr" class="small" style="color:var(--danger);min-height:18px"></div>
+    <button class="btn" data-act="exp-next">${s===4?"Ins Journal":"Weiter"}</button>
+    ${s>0?`<button class="linkbtn" data-act="exp-back">‹ Zurück</button>`:`<button class="linkbtn" data-act="exp-cancel">Abbrechen</button>`}
+    ${s<4?`<button class="linkbtn" data-act="exp-skip">Überspringen</button>`:""}`;
+}
+function expAction(a,b){
+  const E=S.exp; if(!E && a!=="exp-start") return;
+  const Q=E?EXP_Q[E.step]:null;
+  const keep=()=>{ const f=document.getElementById("erkIn"); if(f&&Q&&!Q.choice) E[Q.k]=f.value.trim(); };
+  const err=m=>{ const e=document.getElementById("erkErr"); if(e) e.textContent=m; };
+  if(a==="exp-start"){ S.exp=expNew(); save(); render(); window.scrollTo(0,0); return; }
+  if(a==="exp-cancel"){ S.exp=null; save(); render(); return; }
+  if(a==="exp-choose"){ E.asked=b.dataset.v; save(); render(); return; }
+  if(a==="exp-back"){ keep(); E.step=Math.max(0,E.step-1); save(); render(); window.scrollTo(0,0); return; }
+  if(a==="exp-skip"){ keep(); E.step++; save(); render(); window.scrollTo(0,0); return; }
+  if(a==="exp-next"){
+    keep();
+    if(Q.k==="asked" && !E.asked) return err("Wähle eine Antwort.");
+    if(E.step<4){ E.step++; save(); render(); window.scrollTo(0,0); return; }
+    const L=[];
+    if(E.seen) L.push("Gesehen oder gehört: "+E.seen);
+    if(E.asked) L.push("Nach meiner Sicht gefragt: "+E.asked);
+    if(E.need) L.push("Ich brauche gerade: "+E.need);
+    if(E.listen) L.push("Beim Zuhören hilft: "+E.listen);
+    if(E.kind) L.push("Liebevollster Umgang (für mich): "+E.kind);
+    if(!L.length) return err("Schreib wenigstens eine Antwort auf.");
+    addEntry({area:"erkennen", title:"Ordnung und Erklärung", text:L.join("\n"), meta:{kind:"ordnung", asked:E.asked||""}});
+    S.exp=null; save(); toast("Im Journal festgehalten."); location.hash="#/journal";
+  }
+}
+
 /* ---------- Router ---------- */
 function render(){
   clearTimeout(breathTimer); breathTimer=null; clearInterval(losTick); losTick=null;
@@ -2052,7 +2154,7 @@ function render(){
   if(h==="#/bereich/loslassen") losAfterRender();
 }
 let lastRoute = "#/";
-window.addEventListener("hashchange", ()=>{ ui.confirmDel=null; ui.confirmWipe=false; ui.losBackfill=false; ui.losConfirmDiscard=false; ui.erkConfirmCancel=false; ui.ordConfirmCancel=false; ui.losView=ui.losGoFeel?"feel":null; ui.losGoFeel=false; ui.habDel=null; ui.intView="map"; ui.intPick=null; ui.memId=null; ui.memNone=false; ui.erkThemes=false; ui.frView="main"; ui.wohView="main"; ui.goalReach=null; ui.goalDel=null; ui.hobGoal=null; render(); window.scrollTo(0,0); });
+window.addEventListener("hashchange", ()=>{ ui.confirmDel=null; ui.confirmWipe=false; ui.losBackfill=false; ui.losConfirmDiscard=false; ui.erkConfirmCancel=false; ui.ordConfirmCancel=false; ui.losView=ui.losGoFeel?"feel":null; ui.losGoFeel=false; ui.habDel=null; ui.intView="map"; ui.intPick=null; ui.memId=null; ui.memNone=false; ui.erkThemes=false; ui.frView="main"; ui.wohView="main"; ui.goalReach=null; ui.goalDel=null; ui.hobGoal=null; ui.hobIdea=null; ui.ideaFrom=null; ui.ideaDel=null; render(); window.scrollTo(0,0); });
 
 function startBreath(){
   const b=document.getElementById("breath"), t=document.getElementById("breathTxt");
@@ -2104,6 +2206,13 @@ function importRest(d){
     const mine=S.int, empty=!mine || (!intHasData(mine) && !mine.isles);
     if(empty){ S.int=copy(d.int); intS(); ["hits","exp","bonus","modes"].forEach(f=>{ if(!isObj(S.int[f])) S.int[f]={}; }); ["seen","pending","dreams"].forEach(f=>{ if(!Array.isArray(S.int[f])) S.int[f]=f==="dreams"?DREAMS.slice():[]; }); S.int.round=null; if(typeof S.int.rounds!=="number") S.int.rounds=0; more.push("Entdeckerkarte"); }
   }
+  // Interesse: angezogene Karten ergänzen (auch wenn schon Daten da sind)
+  if(isObj(d.int) && Array.isArray(d.int.liked) && S.int){
+    if(!Array.isArray(S.int.liked)) S.int.liked=[];
+    const have=new Set(S.int.liked.map(x=>x.ref+"|"+x.date)); let k=0;
+    d.int.liked.forEach(x=>{ if(isObj(x) && x.ref && x.date && !have.has(x.ref+"|"+x.date)){ S.int.liked.push(copy(x)); k++; } });
+    if(k) more.push("angezogene Karten");
+  }
   // Freude: nur übernehmen, wenn auf dem Gerät noch nichts da ist
   if(isObj(d.fr)){
     const m=S.fr, empty=!m || !((m.essences||[]).length || (m.own||[]).length || (m.pending||[]).length || (m.baro||[]).length || Object.keys(m.lib||{}).length || (m.hob||[]).length);
@@ -2126,6 +2235,12 @@ function importRest(d){
     const G=goalS(), have=new Set(G.map(g=>g.id)); let k=0;
     d.goals.forEach(g=>{ if(isObj(g) && g.id && !have.has(g.id)){ const c=copy(g); if(!Array.isArray(c.done)) c.done=[]; G.push(c); k++; } });
     if(k) more.push(k===1?"1 Ziel":k+" Ziele");
+  }
+  // Themen für später: fehlende dazu
+  if(Array.isArray(d.ideas)){
+    const I=ideaS(), have=new Set(I.map(x=>x.id)); let k=0;
+    d.ideas.forEach(x=>{ if(isObj(x) && x.id && x.name && !have.has(x.id)){ I.push(copy(x)); k++; } });
+    if(k) more.push(k===1?"1 Thema für später":k+" Themen für später");
   }
   // Eigene Gefühls- und Körperwörter: zusammenführen, eigene zuerst
   let w=false;
@@ -2181,12 +2296,14 @@ app.addEventListener("click", e=>{
   else if(a.startsWith("erk-")) erkAction(a,b);
   else if(a.startsWith("ord-")) ordAction(a,b);
   else if(a.startsWith("ein-")) einAction(a,b);
+  else if(a.startsWith("exp-")) expAction(a,b);
   else if(a.startsWith("hab-")) habAction(a,b);
   else if(a.startsWith("tw-")) twAction(a,b);
   else if(a.startsWith("int-")) intAction(a,b);
   else if(a.startsWith("hob-")) hobAction(a,b);
   else if(a.startsWith("woh-")) wohAction(a,b);
   else if(a.startsWith("goal-")) goalAction(a,b);
+  else if(a.startsWith("idea-")) ideaAction(a,b);
   else if(a.startsWith("fr-")) frAction(a,b);
   else if(a==="export") doExport();
   else if(a==="snooze"){ S.backupSnooze=new Date().toISOString(); save(); render(); }
