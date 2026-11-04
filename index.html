@@ -131,7 +131,7 @@ button.entry{font:inherit;color:inherit}
 "use strict";
 /* ---------- Daten ---------- */
 const KEY = "lebenskompass.v1";
-const VERSION = "Etappe 13.3";
+const VERSION = "Etappe 13.4";
 const DIRS = {
   erkennen:  { name:"Erkennen",  pos:"n", rot:0,   kicker:"Oben · Beginn", text:"Was hält dich ab? Oder: Was Altes kommt hoch und will eingeordnet werden?", cta:"Starten" },
   loslassen: { name:"Loslassen", pos:"e", rot:90,  kicker:"Rechts", text:"Ein Gefühl in Runden loslassen, oder abhaken, dass du heute ohne eine ungeliebte Gewohnheit ausgekommen bist.", cta:"Öffnen" },
@@ -1687,6 +1687,14 @@ function hobCount(h){ const s=hobIsMonth(h)?hobMonthStart():hobWeekStart(); retu
 function hobRhythm(h){ return hobIsMonth(h) ? `${h.per}× im Monat` : `${h.per}× pro Woche`; }
 function hobPeriod(h, cap){ const t=hobIsMonth(h)?"diesen Monat":"diese Woche"; return cap? t[0].toUpperCase()+t.slice(1) : t; }
 function hobToday(h){ return h.log.find(l=>dKey(l.date)===dShift(0)); }
+/* Etappe 13.4: offen = diese Periode noch nicht voll, heute nicht schon gemacht, heute nicht verschoben */
+function hobOpen(h){ return hobCount(h)<h.per && !hobToday(h) && h.snooze!==dKey(); }
+function hobBadge(){
+  try{
+    if(!("setAppBadge" in navigator) || typeof Notification==="undefined" || Notification.permission!=="granted") return;
+    if(hobS().some(hobOpen)) navigator.setAppBadge(1).catch(()=>{}); else navigator.clearAppBadge().catch(()=>{});
+  }catch(e){}
+}
 function hobDots(n,k){ let o=""; for(let i=0;i<Math.max(n,k);i++) o+=`<span aria-hidden="true" style="display:inline-block;width:14px;height:14px;border-radius:7px;margin-right:2px;${i<n?"background:var(--accent)":"border:1.5px solid var(--accent)"}"></span>`; return o; }
 function hobTile(){
   const H=hobS();
@@ -1695,13 +1703,14 @@ function hobTile(){
   return `<button class="path" data-act="woh-view" data-v="hob"><span class="k">Regelmäßig</span><span class="t">Was läuft</span><span class="d">${d}</span></button>`;
 }
 function hobCard(h){
-  const n=hobCount(h), t=hobToday(h), g=h.goal && goalS().find(x=>x.id===h.goal && !x.reached);
+  const n=hobCount(h), t=hobToday(h), g=h.goal && goalS().find(x=>x.id===h.goal && !x.reached), open=hobOpen(h);
   return `<div class="card" style="gap:8px">
-    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><h2 style="font-size:21px">${esc(h.name)}</h2><span class="small muted">${hobRhythm(h)}</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><h2 style="font-size:21px">${open?`<span aria-label="offen" style="display:inline-block;width:10px;height:10px;border-radius:5px;background:var(--danger);margin-right:8px;vertical-align:middle"></span>`:""}${esc(h.name)}</h2><span class="small muted">${hobRhythm(h)}</span></div>
     ${g?`<div class="small muted" style="margin-top:-4px">für: ${esc(g.name)}</div>`:""}
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${hobDots(n,h.per)}<span class="small" style="margin-left:4px">${hobPeriod(h,1)}: ${n} von ${h.per}</span></div>
     ${t ? `<div class="small">Heute: <b>gemacht ✓</b> <button class="linkbtn" style="min-height:32px" data-act="hob-undo" data-v="${h.id}">ändern</button></div>`
         : `<button class="btn sm" style="align-self:flex-start" data-act="hob-done" data-v="${h.id}">Heute gemacht</button>`}
+    ${open && !t ? `<button class="linkbtn" style="align-self:flex-start;min-height:32px" data-act="hob-later" data-v="${h.id}">Heute nicht, morgen</button>` : ""}
     <button class="linkbtn" style="align-self:flex-start;min-height:32px;padding:0;text-decoration:none;color:var(--muted);font-size:14px" data-act="hob-del" data-v="${h.id}">${ui.hobDel===h.id?"Wirklich entfernen? Deine Journal-Einträge bleiben.":"Entfernen"}</button>
   </div>`;
 }
@@ -1710,6 +1719,7 @@ function screenHob(){
   const chip=(k,u)=>{ const on=per===k&&unit===u; return `<button class="chip ${on?"on":""}" data-act="hob-per" data-v="${k}" data-k="${u}" aria-pressed="${on}">${k}×</button>`; };
   return `${wohBar(1)}<h1>Was läuft</h1>
     <div class="muted" style="line-height:1.45;margin-top:-8px">Du tippst nur, wenn du es gemacht hast. Eine leere Woche ist einfach eine leere Woche.</div>
+    ${("setAppBadge" in navigator) && typeof Notification!=="undefined" && Notification.permission==="default" ? `<div class="soft small" style="display:flex;flex-direction:column;gap:8px;line-height:1.4">Ein roter Punkt auf dem Icon zeigt dir, dass hier etwas offen ist.<button class="btn sm line" style="align-self:flex-start" data-act="hob-badge-ask">Punkt auf dem Icon erlauben</button></div>` : ""}
     ${H.map(hobCard).join("")}
     <div class="card" id="hobForm"><div class="kicker">Etwas hinzufügen, das du regelmäßig pflegst</div>
       ${g?`<div class="small muted">für dein Ziel: <b>${esc(g.name)}</b> <button class="linkbtn" style="min-height:32px" data-act="hob-nogoal">ohne Ziel</button></div>`:""}
@@ -1781,6 +1791,8 @@ function hobAction(a,b){
     const h=hobS().find(x=>x.id===v), t=h&&hobToday(h); if(!t) return;
     h.log=h.log.filter(x=>x.id!==t.id); S.entries=S.entries.filter(e=>!(e.meta&&e.meta.hobbyLog===t.id&&e.meta.count)); save(); render();
   }
+  else if(a==="hob-later"){ const h=hobS().find(x=>x.id===v); if(!h) return; h.snooze=dKey(); save(); toast("Morgen wieder."); top(); }
+  else if(a==="hob-badge-ask"){ try{ Notification.requestPermission().then(()=>{ hobBadge(); top(); }); }catch(e){ toast("Auf diesem Gerät nicht möglich."); } }
   else if(a==="hob-del"){ if(ui.hobDel===v){ frS().hob=hobS().filter(x=>x.id!==v); ui.hobDel=null; save(); } else ui.hobDel=v; render(); }
 }
 
@@ -2150,6 +2162,7 @@ function render(){
   else if(h.startsWith("#/bereich/")) html=screenBereich(h.slice(10));
   else html=screenStart();
   app.innerHTML = html;
+  hobBadge();
   if(h==="#/pause") startBreath();
   if(h==="#/bereich/loslassen") losAfterRender();
 }
