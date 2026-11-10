@@ -58,7 +58,7 @@ h2{font-family:var(--serif);font-weight:600;font-size:22px;line-height:1.2;margi
 .dir{position:absolute;height:48px;border-radius:24px;border:1px solid var(--accent);background:var(--card);color:var(--accent);font-size:16px;font-weight:600}
 .navbtn{align-self:center;height:48px;border-radius:24px;border:1px solid var(--accent);background:var(--card);color:var(--accent);font-size:16px;font-weight:600;padding:0 24px}
 .dir.on{background:var(--accent);color:var(--accent-ink)}
-.dir .dot{position:absolute;top:-3px;right:-3px;width:14px;height:14px;border-radius:7px;background:#E0703A;border:2px solid var(--bg)}
+.dir .dot,.navbtn .dot{position:absolute;top:-3px;right:-3px;width:14px;height:14px;border-radius:7px;background:#E0703A;border:2px solid var(--bg)}
 .dir.n{left:125px;top:0;width:90px}.dir.e{left:250px;top:121px;width:90px}.dir.s{left:125px;top:242px;width:90px}.dir.w{left:0;top:121px;width:90px}
 .center{position:absolute;left:134px;top:109px;width:72px;height:72px;border-radius:36px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:14px;font-weight:600}
 .center.on{background:var(--ink);color:var(--bg)}
@@ -131,7 +131,7 @@ button.entry{font:inherit;color:inherit}
 "use strict";
 /* ---------- Daten ---------- */
 const KEY = "lebenskompass.v1";
-const VERSION = "Etappe 13.5";
+const VERSION = "Etappe 13.5.1";
 const DIRS = {
   erkennen:  { name:"Erkennen",  pos:"n", rot:0,   kicker:"Oben · Beginn", text:"Was hält dich ab? Oder: Was Altes kommt hoch und will eingeordnet werden?", cta:"Starten" },
   loslassen: { name:"Loslassen", pos:"e", rot:90,  kicker:"Rechts", text:"Ein Gefühl in Runden loslassen, oder abhaken, dass du heute ohne eine ungeliebte Gewohnheit ausgekommen bist.", cta:"Öffnen" },
