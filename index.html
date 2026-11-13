@@ -131,7 +131,7 @@ button.entry{font:inherit;color:inherit}
 "use strict";
 /* ---------- Daten ---------- */
 const KEY = "lebenskompass.v1";
-const VERSION = "Etappe 13.5.1";
+const VERSION = "Etappe 13.5.2";
 const DIRS = {
   erkennen:  { name:"Erkennen",  pos:"n", rot:0,   kicker:"Oben · Beginn", text:"Was hält dich ab? Oder: Was Altes kommt hoch und will eingeordnet werden?", cta:"Starten" },
   loslassen: { name:"Loslassen", pos:"e", rot:90,  kicker:"Rechts", text:"Ein Gefühl in Runden loslassen, oder abhaken, dass du heute ohne eine ungeliebte Gewohnheit ausgekommen bist.", cta:"Öffnen" },
@@ -1701,7 +1701,8 @@ function hobTile(){
   const H=hobS();
   const d=H.length ? H.map(h=>`${esc(h.name)}: ${hobCount(h)} von ${h.per} ${hobPeriod(h)}`).join(" · ")
     : "Was du regelmäßig pflegen möchtest: Sport, Hobbys, Menschen. Halte fest, wenn du es gemacht hast.";
-  return `<button class="path" data-act="woh-view" data-v="hob"><span class="k">Regelmäßig</span><span class="t">Was läuft</span><span class="d">${d}</span></button>`;
+  const open=H.some(hobOpen);
+  return `<button class="path" data-act="woh-view" data-v="hob"><span class="k">Regelmäßig</span><span class="t">${open?`<span aria-label="hier wartet etwas" style="display:inline-block;width:10px;height:10px;border-radius:5px;background:var(--danger);margin-right:8px;vertical-align:middle"></span>`:""}Was läuft</span><span class="d">${d}</span></button>`;
 }
 function hobCard(h){
   const n=hobCount(h), t=hobToday(h), g=h.goal && goalS().find(x=>x.id===h.goal && !x.reached), open=hobOpen(h);
