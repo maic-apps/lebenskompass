@@ -131,7 +131,7 @@ button.entry{font:inherit;color:inherit}
 "use strict";
 /* ---------- Daten ---------- */
 const KEY = "lebenskompass.v1";
-const VERSION = "Etappe 13.5.2";
+const VERSION = "Etappe 14";
 const DIRS = {
   erkennen:  { name:"Erkennen",  pos:"n", rot:0,   kicker:"Oben · Beginn", text:"Was hält dich ab? Oder: Was Altes kommt hoch und will eingeordnet werden?", cta:"Starten" },
   loslassen: { name:"Loslassen", pos:"e", rot:90,  kicker:"Rechts", text:"Ein Gefühl in Runden loslassen, oder abhaken, dass du heute ohne eine ungeliebte Gewohnheit ausgekommen bist.", cta:"Öffnen" },
@@ -526,14 +526,14 @@ function screenTw(){
     <button class="btn" data-act="tw-next">Weiter</button>${twFoot()}`;
   if(st===5){
     const T=W.turns||{};
-    const box=(k,label,hint)=>`<div class="card" style="gap:6px"><div class="kicker">${label}</div><div class="small muted" style="line-height:1.4">${hint}</div>
-      <input class="t" id="tw-${k}" maxlength="140" autocomplete="off" value="${esc((T[k]||{}).s||"")}" placeholder="Dein umgekehrter Satz">
-      <textarea class="t" id="tw-${k}-ex" rows="2" placeholder="Warum könnte das genauso wahr sein? Ein, zwei Beispiele.">${esc((T[k]||{}).ex||"")}</textarea></div>`;
+    const box=(k,label,hint,ph,exPh)=>`<div class="card" style="gap:6px"><div class="kicker">${label}</div><div class="small muted" style="line-height:1.4">${hint}</div>
+      <input class="t" id="tw-${k}" maxlength="140" autocomplete="off" value="${esc((T[k]||{}).s||"")}" placeholder="${ph}">
+      <textarea class="t" id="tw-${k}-ex" rows="2" placeholder="${exPh}">${esc((T[k]||{}).ex||"")}</textarea></div>`;
     return `${twHead(6)}<h1>Dreh den Gedanken um</h1>${twQuote(W)}
       <div class="muted small" style="line-height:1.45">Es geht nicht um Schuld, sondern darum, wieder handlungsfähig zu werden. Nimm nur die Umkehrungen, die für dich Sinn ergeben.</div>
-      ${box("self","Zu dir selbst","Setz dich selbst ein. Aus „Er sollte sich bei mir melden“ wird „Ich sollte mich bei mir melden“.")}
-      ${box("other","Zum anderen","Tausch die Rollen. „Ich sollte mich bei ihm melden.“")}
-      ${box("opp","Ins Gegenteil","„Er sollte sich nicht bei mir melden.“ Gibt es Gründe dafür?")}
+      ${box("self","Zu dir selbst","Wo tust du selbst das, was du beim anderen vermisst? Beispiel: „Ich melde mich selten bei ihm.“","Wo tue ich das selbst?","Ein, zwei Beispiele aus deinem Alltag.")}
+      ${box("other","Zum anderen","Der Wunsch an ihn wird zu deiner eigenen Handlung. Beispiel: „Ich melde mich bei ihm.“","Was könnte ich tun?","Wann habe ich das schon getan?")}
+      ${box("opp","Ins Gegenteil","Stimmt das Gegenteil manchmal auch? Beispiel: „Er meldet sich oft bei mir.“","Wann war das schon so?","Ein, zwei Beispiele, in denen das stimmt.")}
       <button class="btn" data-act="tw-next">Weiter</button>${twFoot()}`;
   }
   return `${twHead(7)}<h1>Was nimmst du mit?</h1>${twQuote(W)}
@@ -567,7 +567,7 @@ function twAction(a,b){
     if(W.a2) L.push("Absolut sicher? "+(W.a2==="ja"?"Ja":"Nein"));
     if(W.a3) L.push("Wenn ich ihn glaube: "+W.a3);
     if(W.a4) L.push("Ohne den Gedanken: "+W.a4);
-    const T=W.turns||{}, lab={self:"Zu mir selbst",other:"Zum anderen",opp:"Ins Gegenteil"};
+    const T=W.turns||{}, lab={self:"Zu dir selbst",other:"Zum anderen",opp:"Ins Gegenteil"};
     ["self","other","opp"].forEach(k=>{ if(T[k]&&T[k].s) L.push(lab[k]+": „"+T[k].s+"“"+(T[k].ex?" – "+T[k].ex:"")); });
     if(W.take) L.push("Was ich mitnehme: "+W.take);
     addEntry({ area:"loslassen", title:"Gedanke geprüft", text:L.join("\n"), meta:{ work:true } });
